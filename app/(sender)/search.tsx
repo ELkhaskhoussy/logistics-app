@@ -21,7 +21,14 @@ export default function SearchScreen() {
 
     const handleSearch = () => {
         console.log('Search submitted:', searchData);
-        router.push('/(sender)/results' as any);
+        router.push({
+  pathname: "/(sender)/results",
+  params: {
+    collectionCity: searchData.collectionCity,
+    deliveryCity: searchData.deliveryCity,
+    date: searchData.date,
+  },} as any);
+
     };
 
     return (

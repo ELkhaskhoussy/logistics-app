@@ -62,7 +62,8 @@ export default function LoginScreen() {
     };
 
     const handleSignUp = () => {
-        router.push('/register');
+        router.push('/(role-selection)' as any);
+
     };
 
     const handleGoogleSignIn = () => {
