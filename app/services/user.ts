@@ -1,6 +1,6 @@
-import backService from './backService';
 import { getToken } from '../utils/tokenStorage';
 import { getUserFromCache, saveUserToCache, UserProfile } from '../utils/userCache';
+import { apiClient } from './backService';
 
 
 /**
@@ -27,7 +27,7 @@ export const fetchUserProfile = async (userId: number): Promise<UserProfile> => 
     }
 
     try {
-        const response = await backService.get(`/users/${userId}`, {
+        const response = await apiClient.get(`/users/${userId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
             },

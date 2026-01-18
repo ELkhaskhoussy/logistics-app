@@ -1,6 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import backService from "../services/backService";
 
 export default function TransporterLayout() {
     return (
