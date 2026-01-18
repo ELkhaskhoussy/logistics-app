@@ -15,6 +15,8 @@ export interface UserProfile {
     phone?: string;
     imageUrl?: string;
     role: string;
+    profileImageUrl?: string;
+
 }
 
 /**
