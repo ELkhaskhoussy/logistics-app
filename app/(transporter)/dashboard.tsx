@@ -1,16 +1,16 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import backService from "../services/backService";
+import { apiClient } from '../services/backService';
 
 import {
+  ActivityIndicator,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 
 import { getToken, getUserId } from '../utils/tokenStorage';
@@ -37,7 +37,7 @@ export default function DashboardScreen() {
         const userId = await getUserId();
         if (!userId) return;
 
-        const res = await backService.get(`/users/${userId}`);
+        const res = await apiClient.get(`/users/${userId}`);
         setProfile(res.data);
       } catch (err) {
         console.log('Failed to load profile:', err);
@@ -60,7 +60,7 @@ export default function DashboardScreen() {
 
         if (!userId || !token) return;
 
-        const res = await backService.get(
+        const res = await apiClient.get(
           `/catalog/trips/transporter/${userId}`,
           {
             headers: {

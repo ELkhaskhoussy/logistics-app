@@ -1,7 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import backService from "../services/backService";
 import {
   Platform,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { apiClient } from '../services/backService';
 
 /**
  * ✅ Convert input city to backend format:
@@ -62,7 +62,7 @@ export default function ResultsScreen() {
         const url = `/catalog/trips/search?${params.toString()}`;
         console.log("Final URL =", url);
 
-        const response = await backService.get(url);
+        const response = await apiClient.get(url);
         const data = response.data;
 
         setTrips(Array.isArray(data) ? data : []);
@@ -78,7 +78,7 @@ export default function ResultsScreen() {
   }, [departureCity, arrivalCity, selectedDate]);
 
   const handleTransporterPress = (id: number) => {
-    router.push(`/(sender)/transporter-profile?id=${id}` as any);
+    router.push(`/(sender)/transporter/${id}` as any);
   };
 
   const formatDateTime = (value: any) => {

@@ -1,33 +1,7 @@
-import axios from 'axios';
-import { Platform } from 'react-native';
 import { getToken } from '../utils/tokenStorage';
+import { API_BASE_URL, apiClient } from './backService';
 
-// Platform-specific API URL (same as auth.ts)
-const getApiBaseUrl = (): string => {
-    // Priority 1: Environment variable (for custom deployment)
-    if (process.env.EXPO_PUBLIC_API_URL) {
-        console.log('[TRIP-SERVICE] Using EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
-        return process.env.EXPO_PUBLIC_API_URL;
-    }
-
-    const defaultPort = 8080; // API Gateway port
-
-    // Priority 2: Physical device - YOU CAN SET YOUR LAN IP HERE
-    // Example: const lanIP = '192.168.1.100'; // Your computer's local IP
-    const lanIP = null; // Set this to your LAN IP for phone testing
-
-    if (Platform.OS === 'android') {
-        // Android emulator uses 10.0.2.2 to access host's localhost
-        return lanIP ? `http://${lanIP}:${defaultPort}` : `http://10.0.2.2:${defaultPort}`;
-    } else if (Platform.OS === 'web') {
-        return `http://localhost:${defaultPort}`;
-    } else {
-        // iOS simulator or physical devices
-        return lanIP ? `http://${lanIP}:${defaultPort}` : `http://localhost:${defaultPort}`;
-    }
-};
-
-const API_BASE_URL = getApiBaseUrl();
+// Using centralized backend service configuration
 console.log('[TRIP-SERVICE] Using API_BASE_URL:', API_BASE_URL);
 
 // ============================================
@@ -114,13 +88,12 @@ export const createTrip = async (tripData: CreateTripRequest): Promise<Trip> => 
     }
 
     try {
-        const response = await axios.post(
-            `${API_BASE_URL}/catalog/trips`,
+        const response = await apiClient.post(
+            '/catalog/trips',
             tripData,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             }
         );
@@ -171,8 +144,8 @@ export const fetchTransporterTrips = async (transporterId: number): Promise<Trip
     }
 
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/catalog/trips/transporter/${transporterId}`,
+        const response = await apiClient.get(
+            `/catalog/trips/transporter/${transporterId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -214,13 +187,12 @@ export const createTransporterProfile = async (
     }
 
     try {
-        await axios.post(
-            `${API_BASE_URL}/catalog/transporters?userId=${userId}`,
+        await apiClient.post(
+            `/catalog/transporters?userId=${userId}`,
             profileData,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             }
         );
@@ -245,8 +217,8 @@ export const fetchTransporterProfile = async (
     }
 
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/catalog/transporters/${userId}`,
+        const response = await apiClient.get(
+            `/catalog/transporters/${userId}`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -280,13 +252,12 @@ export const updateTransporterProfile = async (
     }
 
     try {
-        await axios.put(
-            `${API_BASE_URL}/catalog/transporters/${userId}`,
+        await apiClient.put(
+            `/catalog/transporters/${userId}`,
             updates,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                 },
             }
         );

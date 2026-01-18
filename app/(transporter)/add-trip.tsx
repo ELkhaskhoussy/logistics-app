@@ -1,9 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import Toast from "react-native-toast-message";
 import React, { useState } from 'react';
-import backService from "../services/backService";
+import Toast from "react-native-toast-message";
 
 import {
     ActivityIndicator,
@@ -206,52 +205,52 @@ export default function AddTripScreen() {
             console.log('✅ [ADD-TRIP] Step 3: Preparing request...');
 
             // Convert datetime strings to ISO format with robust validation
-           const convertToISO = (dateTimeStr: string): string => {
-  console.log('[ADD-TRIP] Converting datetime:', dateTimeStr);
+            const convertToISO = (dateTimeStr: string): string => {
+                console.log('[ADD-TRIP] Converting datetime:', dateTimeStr);
 
-  if (!dateTimeStr || dateTimeStr.trim() === '') {
-    console.error('[ADD-TRIP] Empty datetime string!');
-    return '';
-  }
+                if (!dateTimeStr || dateTimeStr.trim() === '') {
+                    console.error('[ADD-TRIP] Empty datetime string!');
+                    return '';
+                }
 
-  const trimmed = dateTimeStr.trim();
+                const trimmed = dateTimeStr.trim();
 
-  // ✅ Already in perfect ISO format (YYYY-MM-DDTHH:MM:SS)
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
-    console.log('[ADD-TRIP] Already in ISO format:', trimmed);
-    return trimmed;
-  }
+                // ✅ Already in perfect ISO format (YYYY-MM-DDTHH:MM:SS)
+                if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(trimmed)) {
+                    console.log('[ADD-TRIP] Already in ISO format:', trimmed);
+                    return trimmed;
+                }
 
-  // ✅ "YYYY-MM-DD HH:MM"
-  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) {
-    const result = trimmed.replace(' ', 'T') + ':00';
-    console.log('[ADD-TRIP] Converted space-separated to ISO:', result);
-    return result;
-  }
+                // ✅ "YYYY-MM-DD HH:MM"
+                if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) {
+                    const result = trimmed.replace(' ', 'T') + ':00';
+                    console.log('[ADD-TRIP] Converted space-separated to ISO:', result);
+                    return result;
+                }
 
-  // ✅ "YYYY-MM-DDTHH:MM"
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
-    const result = trimmed + ':00';
-    console.log('[ADD-TRIP] Added seconds:', result);
-    return result;
-  }
+                // ✅ "YYYY-MM-DDTHH:MM"
+                if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
+                    const result = trimmed + ':00';
+                    console.log('[ADD-TRIP] Added seconds:', result);
+                    return result;
+                }
 
-  // ✅ VERY IMPORTANT: accept "YYYY-M-D" or "YYYY-MM-DD"
-  // Example: "2026-1-20" => "2026-01-20T00:00:00"
-  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmed)) {
-    const [y, m, d] = trimmed.split('-');
-    const mm = m.padStart(2, '0');
-    const dd = d.padStart(2, '0');
-    const result = `${y}-${mm}-${dd}T00:00:00`;
-    console.log('[ADD-TRIP] Date only detected, converted to ISO:', result);
-    return result;
-  }
+                // ✅ VERY IMPORTANT: accept "YYYY-M-D" or "YYYY-MM-DD"
+                // Example: "2026-1-20" => "2026-01-20T00:00:00"
+                if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmed)) {
+                    const [y, m, d] = trimmed.split('-');
+                    const mm = m.padStart(2, '0');
+                    const dd = d.padStart(2, '0');
+                    const result = `${y}-${mm}-${dd}T00:00:00`;
+                    console.log('[ADD-TRIP] Date only detected, converted to ISO:', result);
+                    return result;
+                }
 
-  console.error('[ADD-TRIP] Invalid datetime format:', trimmed);
-  throw new Error(
-    `Invalid datetime format: ${trimmed}. Expected: YYYY-MM-DD HH:MM`
-  );
-};
+                console.error('[ADD-TRIP] Invalid datetime format:', trimmed);
+                throw new Error(
+                    `Invalid datetime format: ${trimmed}. Expected: YYYY-MM-DD HH:MM`
+                );
+            };
 
             console.log('[ADD-TRIP] Raw departure:', tripData.departureDateTime);
             console.log('[ADD-TRIP] Raw arrival:', tripData.arrivalDateTime);
@@ -273,11 +272,11 @@ export default function AddTripScreen() {
                 pricePerKg: price,
                 collectionStops: [],
                 deliveryStops: tripData.stops
-                .filter(stop => stop.trim() !== '')
-                .map(stop => ({
-                    city: stop,
-                    fullAddress: stop,
-                })),
+                    .filter(stop => stop.trim() !== '')
+                    .map(stop => ({
+                        city: stop,
+                        fullAddress: stop,
+                    })),
 
             };
 
@@ -292,14 +291,14 @@ export default function AddTripScreen() {
             console.log('[ADD-TRIP] ✅ Trip created successfully:', createdTrip);
 
             // Show success message
-                     Toast.show({
-                            type: "success",
-                            text1: "Le trajet a été créé avec succès",
-                            });
+            Toast.show({
+                type: "success",
+                text1: "Le trajet a été créé avec succès",
+            });
 
-                            setTimeout(() => {
-                            router.replace("/(transporter)/dashboard" as any);
-                            }, 800);
+            setTimeout(() => {
+                router.replace("/(transporter)/dashboard" as any);
+            }, 800);
 
 
         } catch (error: any) {
