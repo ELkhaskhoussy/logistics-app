@@ -1,8 +1,7 @@
-import axios from 'axios';
+import backService from './backService';
 import { getToken } from '../utils/tokenStorage';
 import { getUserFromCache, saveUserToCache, UserProfile } from '../utils/userCache';
 
-const API_BASE_URL = 'http://localhost:8080';
 
 /**
  * Fetch user profile with caching
@@ -28,7 +27,7 @@ export const fetchUserProfile = async (userId: number): Promise<UserProfile> => 
     }
 
     try {
-        const response = await axios.get(`${API_BASE_URL}/users/${userId}`, {
+        const response = await backService.get(`/users/${userId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
             },

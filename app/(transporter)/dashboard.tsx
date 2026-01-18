@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import backService from "../services/backService";
 
 import {
   Platform,
@@ -37,7 +37,7 @@ export default function DashboardScreen() {
         const userId = await getUserId();
         if (!userId) return;
 
-        const res = await axios.get(`http://localhost:8080/users/${userId}`);
+        const res = await backService.get(`/users/${userId}`);
         setProfile(res.data);
       } catch (err) {
         console.log('Failed to load profile:', err);
@@ -60,8 +60,8 @@ export default function DashboardScreen() {
 
         if (!userId || !token) return;
 
-        const res = await axios.get(
-          `http://localhost:8080/catalog/trips/transporter/${userId}`,
+        const res = await backService.get(
+          `/catalog/trips/transporter/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

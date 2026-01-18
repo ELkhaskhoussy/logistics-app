@@ -17,7 +17,8 @@ import { getToken } from '../utils/tokenStorage';
  * Live backend URL - used for all environments
  * Override with EXPO_PUBLIC_API_URL environment variable if needed
  */
-const LIVE_BACKEND_URL = 'http://84.46.254.94:8080';
+//const BACKEND_URL = 'http://84.46.254.94:8080'; //When deploying
+export const BACKEND_URL = "http://localhost:8080";
 
 export const getApiBaseUrl = (): string => {
     // Allow environment variable override for testing
@@ -26,8 +27,8 @@ export const getApiBaseUrl = (): string => {
         return process.env.EXPO_PUBLIC_API_URL;
     }
 
-    console.log('[BACK-SERVICE] Using live backend URL:', LIVE_BACKEND_URL);
-    return LIVE_BACKEND_URL;
+    console.log('[BACK-SERVICE] Using live backend URL:', BACKEND_URL);
+    return BACKEND_URL;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
