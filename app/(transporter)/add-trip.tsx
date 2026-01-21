@@ -1,7 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
+import Toast from "react-native-toast-message";
 import React, { useState } from 'react';
+import backService from "../services/backService";
+
 import {
     ActivityIndicator,
     Alert,
@@ -268,13 +271,14 @@ export default function AddTripScreen() {
                 departureTime: departureDateTimeISO,  // Use converted ISO string
                 arrivalTime: arrivalDateTimeISO,      // Use converted ISO string
                 pricePerKg: price,
-                collectionStops: tripData.stops
-                    .filter(stop => stop.trim() !== '')
-                    .map(stop => ({
-                        city: stop,
-                        fullAddress: stop,
-                    })),
-                deliveryStops: [],
+                collectionStops: [],
+                deliveryStops: tripData.stops
+                .filter(stop => stop.trim() !== '')
+                .map(stop => ({
+                    city: stop,
+                    fullAddress: stop,
+                })),
+
             };
 
             console.log('[ADD-TRIP] ========== REQUEST DETAILS ==========');
@@ -288,19 +292,16 @@ export default function AddTripScreen() {
             console.log('[ADD-TRIP] ✅ Trip created successfully:', createdTrip);
 
             // Show success message
-            Alert.alert(
-                'Success',
-                'Trip created successfully!',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => {
-                            // Navigate to dashboard
-                            router.replace('/(transporter)/dashboard' as any);
-                        },
-                    },
-                ]
-            );
+                     Toast.show({
+                            type: "success",
+                            text1: "Le trajet a été créé avec succès",
+                            });
+
+                            setTimeout(() => {
+                            router.replace("/(transporter)/dashboard" as any);
+                            }, 800);
+
+
         } catch (error: any) {
             console.error('[ADD-TRIP] ❌ Failed to create trip:', error);
             Alert.alert('Error', error.message || 'Failed to create trip');
