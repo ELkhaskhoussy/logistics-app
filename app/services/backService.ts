@@ -3,31 +3,41 @@ import { getToken } from '../utils/tokenStorage';
 
 /**
  * Centralized Backend Service Configuration
- * - Live Backend URL: http://84.46.254.94:8080
+ * - Supports DEV and PROD environments
  * - Provides a configured axios instance for all API calls
  * - Handles authentication token injection
  * - Implements request/response logging
  */
 
 // ============================================
-// API Base URL Configuration
+// Environment Configuration
 // ============================================
 
 /**
- * Live backend URL - used for all environments
- * Override with EXPO_PUBLIC_API_URL environment variable if needed
+ * Environment mode - Change this to switch between DEV and PROD
+ * 'DEV' = Local development (uses your computer's LAN IP for phone testing)
+ * 'PROD' = Production deployment (uses live server)
  */
-const LIVE_BACKEND_URL = 'http://84.46.254.94:8080';
+const ENV_MODE: 'DEV' | 'PROD' = 'DEV'; // ⚠️ Change to 'PROD' before deployment!
+
+/**
+ * Backend URLs for different environments
+ */
+const BACKEND_URLS = {
+    DEV: 'http://192.168.1.16:8080',      // Your computer's LAN IP for local testing
+    PROD: 'http://84.46.254.94:8080',     // Live production server
+};
 
 export const getApiBaseUrl = (): string => {
-    // Allow environment variable override for testing
+    // Allow environment variable override
     if (process.env.EXPO_PUBLIC_API_URL) {
         console.log('[BACK-SERVICE] Using API URL from env:', process.env.EXPO_PUBLIC_API_URL);
         return process.env.EXPO_PUBLIC_API_URL;
     }
 
-    console.log('[BACK-SERVICE] Using live backend URL:', LIVE_BACKEND_URL);
-    return LIVE_BACKEND_URL;
+    const url = BACKEND_URLS[ENV_MODE];
+    console.log([BACK-SERVICE] Environment: ${ENV_MODE}, Using URL: ${url});
+    return url;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -67,14 +77,14 @@ apiClient.interceptors.request.use(
             method: config.method?.toUpperCase(),
             url: config.url,
             baseURL: config.baseURL,
-            fullURL: `${config.baseURL}${config.url}`,
+            fullURL: ${config.baseURL}${config.url},
         });
 
         // Inject authentication token if available
         try {
             const token = await getToken();
             if (token && config.headers) {
-                config.headers.Authorization = `Bearer ${token}`;
+                config.headers.Authorization = Bearer ${token};
                 console.log('[BACK-SERVICE] 🔑 Token injected');
             }
         } catch (error) {
