@@ -36,7 +36,7 @@ export const getApiBaseUrl = (): string => {
     }
 
     const url = BACKEND_URLS[ENV_MODE];
-    console.log([BACK-SERVICE] Environment: ${ENV_MODE}, Using URL: ${url});
+    console.log(`[BACK-SERVICE] Environment: ${ENV_MODE}, Using URL: ${url}`);
     return url;
 };
 
@@ -77,14 +77,14 @@ apiClient.interceptors.request.use(
             method: config.method?.toUpperCase(),
             url: config.url,
             baseURL: config.baseURL,
-            fullURL: ${config.baseURL}${config.url},
+            fullURL: `${config.baseURL}${config.url}`,
         });
 
         // Inject authentication token if available
         try {
             const token = await getToken();
             if (token && config.headers) {
-                config.headers.Authorization = Bearer ${token};
+                config.headers.Authorization = `Bearer ${token}`;
                 console.log('[BACK-SERVICE] 🔑 Token injected');
             }
         } catch (error) {
