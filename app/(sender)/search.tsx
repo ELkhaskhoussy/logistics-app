@@ -5,6 +5,8 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+import Toast from "react-native-toast-message";
+
 import {
   Platform,
   ScrollView,
@@ -38,17 +40,58 @@ export default function SearchScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
+  // ✅ Errors (to highlight inputs)
+  const [collectionError, setCollectionError] = useState(false);
+  const [deliveryError, setDeliveryError] = useState(false);
+  const [dateError, setDateError] = useState(false);
+
   const todayExample = formatLocalDate(new Date());
 
   const handleSearch = () => {
     console.log("Search submitted:", searchData);
 
-    // ✅ validation rule: either date OR both cities
-    if (!searchData.date && (!searchData.collectionCity || !searchData.deliveryCity)) {
-      alert("Please choose a date OR fill both cities.");
+    // ✅ Reset errors first
+    setCollectionError(false);
+    setDeliveryError(false);
+    setDateError(false);
+
+    // ✅ STEP 1: collection city required
+    if (!searchData.collectionCity.trim()) {
+      setCollectionError(true);
+      Toast.show({
+        type: "error",
+        text1: "Veuillez saisir la ville de collecte",
+        position: "bottom",
+        visibilityTime: 2500,
+      });
       return;
     }
 
+    // ✅ STEP 2: delivery city required
+    if (!searchData.deliveryCity.trim()) {
+      setDeliveryError(true);
+      Toast.show({
+        type: "error",
+        text1: "Veuillez saisir la ville de livraison",
+        position: "bottom",
+        visibilityTime: 2500,
+      });
+      return;
+    }
+
+    // ✅ STEP 3: date required
+    if (!searchData.date.trim()) {
+      setDateError(true);
+      Toast.show({
+        type: "error",
+        text1: "Veuillez saisir la date",
+        position: "bottom",
+        visibilityTime: 2500,
+      });
+      return;
+    }
+
+    // ✅ all good -> navigate
     router.push({
       pathname: "/(sender)/results",
       params: {
@@ -73,7 +116,9 @@ export default function SearchScreen() {
         {/* Title Section */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Find Your Transporter</Text>
-          <Text style={styles.subtitle}>Search for available transporters on your route</Text>
+          <Text style={styles.subtitle}>
+            Search for available transporters on your route
+          </Text>
         </View>
 
         {/* Search Card */}
@@ -85,59 +130,85 @@ export default function SearchScreen() {
           <View style={styles.cardContent}>
             {/* Collection City */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Collection City</Text>
+              <Text style={[styles.label, collectionError && styles.labelError]}>
+                Collection City
+              </Text>
               <View style={styles.inputWrapper}>
-                <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
+                <Feather
+                  name="map-pin"
+                  size={16}
+                  color="#6B7280"
+                  style={styles.inputIcon}
+                />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, collectionError && styles.inputError]}
                   placeholder="e.g., Tunis"
                   placeholderTextColor="#9CA3AF"
                   value={searchData.collectionCity}
-                  onChangeText={(text) => setSearchData({ ...searchData, collectionCity: text })}
+                  onChangeText={(text) => {
+                    setCollectionError(false);
+                    setSearchData({ ...searchData, collectionCity: text });
+                  }}
                 />
               </View>
             </View>
 
             {/* Delivery City */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Delivery City</Text>
+              <Text style={[styles.label, deliveryError && styles.labelError]}>
+                Delivery City
+              </Text>
               <View style={styles.inputWrapper}>
-                <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
+                <Feather
+                  name="map-pin"
+                  size={16}
+                  color="#6B7280"
+                  style={styles.inputIcon}
+                />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, deliveryError && styles.inputError]}
                   placeholder="e.g., Paris"
                   placeholderTextColor="#9CA3AF"
                   value={searchData.deliveryCity}
-                  onChangeText={(text) => setSearchData({ ...searchData, deliveryCity: text })}
+                  onChangeText={(text) => {
+                    setDeliveryError(false);
+                    setSearchData({ ...searchData, deliveryCity: text });
+                  }}
                 />
               </View>
             </View>
 
             {/* Preferred Date */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Preferred Date</Text>
+              <Text style={[styles.label, dateError && styles.labelError]}>
+                Preferred Date
+              </Text>
 
               {Platform.OS === "web" ? (
                 <View style={styles.webDateWrapper}>
-                  <Feather name="calendar" size={16} color="#6B7280" style={styles.webCalendarIcon} />
+                  <Feather
+                    name="calendar"
+                    size={16}
+                    color="#6B7280"
+                    style={styles.webCalendarIcon}
+                  />
 
                   <DatePicker
                     selected={selectedDate}
                     onChange={(date: Date | null) => {
                       if (!date) return;
 
-                      // ✅ keep actual Date for UI
-                      setSelectedDate(date);
+                      setDateError(false);
 
-                      // ✅ store string for API (NO timezone shifting!)
+                      setSelectedDate(date);
                       const formattedDate = formatLocalDate(date);
                       setSearchData({ ...searchData, date: formattedDate });
                     }}
                     dateFormat="yyyy-MM-dd"
                     placeholderText={`e.g. ${todayExample}`}
-                    // ✅ IMPORTANT to avoid ugly UI
                     customInput={
                       <input
+                        onFocus={() => setDateError(false)}
                         style={{
                           width: "100%",
                           height: 48,
@@ -145,7 +216,9 @@ export default function SearchScreen() {
                           paddingRight: 12,
                           fontSize: 16,
                           borderRadius: 8,
-                          border: "1px solid #D1D5DB",
+                          border: dateError
+                            ? "1px solid #EF4444"
+                            : "1px solid #D1D5DB",
                           backgroundColor: "#FFFFFF",
                           color: "#111827",
                         }}
@@ -157,10 +230,18 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   style={styles.inputWrapper}
                   activeOpacity={0.8}
-                  onPress={() => setShowCalendar(true)}
+                  onPress={() => {
+                    setShowCalendar(true);
+                    setDateError(false);
+                  }}
                 >
-                  <Feather name="calendar" size={16} color="#6B7280" style={styles.inputIcon} />
-                  <Text style={styles.dateText}>
+                  <Feather
+                    name="calendar"
+                    size={16}
+                    color="#6B7280"
+                    style={styles.inputIcon}
+                  />
+                  <Text style={[styles.dateText, dateError && styles.inputError]}>
                     {searchData.date ? searchData.date : `e.g. ${todayExample}`}
                   </Text>
                 </TouchableOpacity>
@@ -177,6 +258,8 @@ export default function SearchScreen() {
                   setShowCalendar(false);
 
                   if (dateValue) {
+                    setDateError(false);
+
                     setSelectedDate(dateValue);
                     const formattedDate = formatLocalDate(dateValue);
                     setSearchData({ ...searchData, date: formattedDate });
@@ -186,8 +269,17 @@ export default function SearchScreen() {
             )}
 
             {/* Search Button */}
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch} activeOpacity={0.8}>
-              <Feather name="search" size={16} color="#FFFFFF" style={styles.buttonIcon} />
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={handleSearch}
+              activeOpacity={0.8}
+            >
+              <Feather
+                name="search"
+                size={16}
+                color="#FFFFFF"
+                style={styles.buttonIcon}
+              />
               <Text style={styles.searchButtonText}>Find Transporters</Text>
             </TouchableOpacity>
           </View>
@@ -290,6 +382,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  labelError: {
+    color: "#EF4444",
+  },
+
   inputWrapper: {
     position: "relative",
     flexDirection: "row",
@@ -327,6 +423,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#FFFFFF",
     color: "#111827",
+  },
+
+  inputError: {
+    borderColor: "#EF4444",
   },
 
   webDateWrapper: {

@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useRouter,useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback} from 'react';
 import { apiClient } from '../services/backService';
 
 import {
@@ -49,45 +49,47 @@ export default function DashboardScreen() {
     loadProfile();
   }, []);
 
-  // ✅ Load trips
-  useEffect(() => {
-    const loadTrips = async () => {
-      try {
-        setLoadingTrips(true);
+      // ✅ Load trips function 
+      const loadTrips = useCallback(async () => {
+        try {
+          setLoadingTrips(true);
 
-        const userId = await getUserId();
-        const token = await getToken();
+          const userId = await getUserId();
+          const token = await getToken();
 
-        if (!userId || !token) return;
+          if (!userId || !token) return;
 
-        const res = await apiClient.get(
-          `/catalog/trips/transporter/${userId}`,
-          {
+          const res = await apiClient.get(`/catalog/trips/transporter/${userId}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
-        );
+          });
 
-        const trips = Array.isArray(res.data) ? res.data : [];
-        const now = new Date();
+          const trips = Array.isArray(res.data) ? res.data : [];
+          const now = new Date();
 
-        const upcoming = trips.filter((t: any) => new Date(t.departureTime) >= now);
-        const past = trips.filter((t: any) => new Date(t.departureTime) < now);
+          const upcoming = trips.filter((t: any) => new Date(t.departureTime) >= now);
+          const past = trips.filter((t: any) => new Date(t.departureTime) < now);
 
-        setUpcomingTrips(upcoming);
-        setPastTrips(past);
-      } catch (err) {
-        console.log('Failed to load trips:', err);
-        setUpcomingTrips([]);
-        setPastTrips([]);
-      } finally {
-        setLoadingTrips(false);
-      }
-    };
+          setUpcomingTrips(upcoming);
+          setPastTrips(past);
+        } catch (err) {
+          console.log('Failed to load trips:', err);
+          setUpcomingTrips([]);
+          setPastTrips([]);
+        } finally {
+          setLoadingTrips(false);
+        }
+      }, []);
 
-    loadTrips();
-  }, []);
+      // ✅ reload trips every time dashboard is focused
+      useFocusEffect(
+        useCallback(() => {
+          loadTrips();
+        }, [loadTrips])
+      );
+
+   
 
   const formatDate = (value: any) => {
     if (!value) return '—';
@@ -136,7 +138,12 @@ export default function DashboardScreen() {
                 <Text style={styles.emptyText}>No upcoming trips</Text>
               ) : (
                 <View style={styles.tripsList}>
-                  {upcomingTrips.map((trip) => (
+                {[...upcomingTrips]
+                       .sort(
+                           (a, b) =>
+                               new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime()
+                              )
+                        .map((trip) => (
                     <View key={trip.id} style={styles.tripCard}>
                       <View style={styles.tripCardContent}>
                         <View style={styles.tripHeader}>

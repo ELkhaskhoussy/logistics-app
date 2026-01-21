@@ -21,6 +21,19 @@ const normalizeCity = (s?: string) => {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 };
+const addMonths = (yyyyMMdd: string, monthsToAdd: number) => {
+  const [y, m, d] = yyyyMMdd.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+
+  date.setMonth(date.getMonth() + monthsToAdd);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -57,7 +70,10 @@ export default function ResultsScreen() {
 
         if (departureCity) params.append("departureCity", departureCity);
         if (arrivalCity) params.append("arrivalCity", arrivalCity);
-        if (selectedDate) params.append("date", selectedDate);
+        if (selectedDate) {
+          params.append("dateFrom", selectedDate);
+          params.append("dateTo", addMonths(selectedDate, 3));
+        }
 
         const url = `/catalog/trips/search?${params.toString()}`;
         console.log("Final URL =", url);
@@ -83,7 +99,7 @@ export default function ResultsScreen() {
 
   const formatDateTime = (value: any) => {
     if (!value) return "—";
-    return String(value).replace("T", " ").slice(0, 16);
+    return String(value).replace("T", " ").slice(0, 10);
   };
 
   return (
@@ -182,7 +198,20 @@ export default function ResultsScreen() {
                         Arrival: {formatDateTime(trip.arrivalTime)}
                       </Text>
                     </View>
+                  {(() => {
+                      const stop = (trip.collectionStops || []).find(
+                        (s: any) => normalizeCity(s.city) === normalizeCity(deliveryCity)
+                      );
 
+                      return stop ? (
+                        <View style={styles.rowLine}>
+                          <Feather name="map-pin" size={14} color="#6B7280" />
+                          <Text style={styles.route}>
+                            Stop: {stop.city} : {formatDateTime(stop.stopTime)}
+                          </Text>
+                        </View>
+                      ) : null;
+                    })()}
                     <View style={styles.rowLine}>
                       <Feather name="package" size={14} color="#6B7280" />
                       <Text style={styles.route}>
