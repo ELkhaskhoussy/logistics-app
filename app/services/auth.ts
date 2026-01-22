@@ -99,7 +99,7 @@ export interface RegisterResponse {
 
 /**
  * Register a new user (sender or transporter)
- * Endpoint: POST /users/auth/signup
+ * Endpoint: POST /signup
  * 
  * @param userData - User registration data
  * @returns Promise with registration response

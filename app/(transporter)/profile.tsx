@@ -1,23 +1,31 @@
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { apiClient } from '../services/backService';
+
 import {
     ActivityIndicator,
     Alert,
+    Image,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
 import { logoutUser } from '../services/auth';
-import { fetchTransporterProfile } from '../services/trip';
+import { fetchTransporterProfile, updateTransporterProfile } from '../services/trip';
 import { fetchUserProfile } from '../services/user';
-import { getUserId, getUserRole } from '../utils/tokenStorage';
+import { getToken, getUserId, getUserRole } from '../utils/tokenStorage';
 
 export default function TransporterProfileScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
     const [userInfo, setUserInfo] = useState({
         firstName: '',
         lastName: '',
@@ -25,13 +33,27 @@ export default function TransporterProfileScreen() {
         phone: '',
         role: '',
         bio: '',
+        profileImageUrl: '',
     });
     const [editingBio, setEditingBio] = useState(false);
     const [bioText, setBioText] = useState('');
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     useEffect(() => {
-        loadUserInfo();
+        const init = async () => {
+            const role = await getUserRole();
+
+            if (role !== "TRANSPORTER") {
+                router.replace("/(sender)/profile" as any);
+                return;
+            }
+
+            loadUserInfo();
+        };
+
+        init();
     }, []);
+
 
     const loadUserInfo = async () => {
         const role = await getUserRole();
@@ -57,6 +79,7 @@ export default function TransporterProfileScreen() {
                 phone: userData.phone || '',
                 role: role || userData.role,
                 bio: transporterProfile?.bio || '',
+                profileImageUrl: userData.profileImageUrl || "",
             });
             setBioText(transporterProfile?.bio || '');
         } catch (error) {
@@ -66,6 +89,115 @@ export default function TransporterProfileScreen() {
             setLoading(false);
         }
     };
+    const uploadProfilePhoto = async (fileOrUri: any) => {
+        try {
+            const userId = await getUserId();
+            if (!userId) {
+                Alert.alert("Error", "User not found");
+                return;
+            }
+
+            const formData = new FormData();
+
+            if (Platform.OS === "web") {
+                formData.append("file", fileOrUri);
+            } else {
+                const uri = fileOrUri;
+                const filename = uri.split("/").pop() || "profile.jpg";
+                const match = /\.(\w+)$/.exec(filename);
+                const type = match ? `image/${match[1]}` : "image/jpeg";
+
+                formData.append("file", {
+                    uri,
+                    name: filename,
+                    type,
+                } as any);
+            }
+            const token = await getToken();
+
+            const response = await apiClient.post(
+                `/users/${userId}/upload-profile-photo`,
+                formData,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                        Authorization: `Bearer ${token}`,
+                    }
+                }
+            );
+
+            const photoUrl = response.data;
+
+            setUserInfo((prev) => ({
+                ...prev,
+                profileImageUrl: photoUrl,
+            }));
+
+            Alert.alert("Success", "Profile photo saved!");
+        } catch (error: any) {
+            console.log("❌ Upload error FULL:", error);
+            console.log("❌ Upload error status:", error?.response?.status);
+            console.log("❌ Upload error data:", error?.response?.data);
+
+            Alert.alert(
+                "Upload error",
+                `${error?.response?.status || ""} ${JSON.stringify(error?.response?.data || error?.message)}`
+            );
+        }
+    };
+
+    const pickProfileImage = async () => {
+        //  WEB
+        if (Platform.OS === "web") {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+
+            input.onchange = (event: any) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+
+                const imageUrl = URL.createObjectURL(file);
+
+                setSelectedImage(imageUrl);
+                setSelectedFile(file);
+                uploadProfilePhoto(file);
+            };
+
+            input.click();
+            return;
+        }
+
+        //  MOBILE
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (permission.status !== "granted") {
+                Alert.alert(
+                    "Permission needed",
+                    "We need access to your gallery to choose a profile photo."
+                );
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+            });
+
+            if (!result.canceled) {
+                setSelectedImage(result.assets[0].uri);
+                uploadProfilePhoto(result.assets[0].uri);
+            }
+        } catch (err) {
+            console.log("Image pick error:", err);
+            Alert.alert("Error", "Failed to pick image.");
+        }
+    };
+
+
 
     const handleSaveBio = async () => {
         setLoading(true);
@@ -113,14 +245,25 @@ export default function TransporterProfileScreen() {
             </View>
         );
     }
+    const avatarUri = selectedImage || userInfo.profileImageUrl;
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.avatarContainer}>
-                    <Feather name="truck" size={48} color="#FFFFFF" />
+                    {avatarUri ? (
+                        <Image
+                            source={{ uri: avatarUri }}
+                            style={{ width: 96, height: 96, borderRadius: 48 }}
+                        />
+                    ) : (
+                        <Feather name="truck" size={48} color="#FFFFFF" />
+                    )}
                 </View>
+                <TouchableOpacity onPress={pickProfileImage} style={styles.photoButton}>
+                    <Text style={styles.photoButtonText}>Change profile photo</Text>
+                </TouchableOpacity>
                 <Text style={styles.title}>Transporter Profile</Text>
                 <Text style={styles.subtitle}>Gérez votre compte</Text>
             </View>
@@ -193,6 +336,7 @@ export default function TransporterProfileScreen() {
                 </View>
 
                 {editingBio ? (
+
                     <TextInput
                         style={styles.bioInput}
                         placeholder="Décrivez votre service de transport..."
@@ -399,4 +543,17 @@ const styles = StyleSheet.create({
         color: '#9CA3AF',
         marginBottom: 4,
     },
+    photoButton: {
+        marginTop: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 10,
+        backgroundColor: "#2563EB",
+    },
+    photoButtonText: {
+        color: "#FFFFFF",
+        fontWeight: "600",
+        fontSize: 13,
+    },
+
 });

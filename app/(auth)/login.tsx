@@ -42,7 +42,7 @@ export default function LoginScreen() {
                 response.userId
             );
 
-            console.log('✅ [LOGIN] Login successful, navigating to:', response.userRole);
+            console.log(' [LOGIN] Login successful, navigating to:', response.userRole);
 
             // Role-based navigation
             if (response.userRole === 'SENDER') {
@@ -62,7 +62,8 @@ export default function LoginScreen() {
     };
 
     const handleSignUp = () => {
-        router.push('/register');
+        router.push('/(role-selection)' as any);
+
     };
 
     const handleGoogleSignIn = () => {
