@@ -26,7 +26,6 @@ type StopItem = {
 export default function AddTripScreen() {
   const router = useRouter();
 
-  // ✅ now only 2 steps
   const TOTAL_STEPS = 2;
 
   const [step, setStep] = useState(1);
@@ -50,7 +49,7 @@ export default function AddTripScreen() {
     pricePerKg: '',
   });
 
-  // ✅ UI errors (red borders)
+  
   const [invalidDepartureDate, setInvalidDepartureDate] = useState(false);
   const [invalidArrivalDate, setInvalidArrivalDate] = useState(false);
   const [invalidStopDates, setInvalidStopDates] = useState<number[]>([]); // stop indexes
@@ -96,7 +95,6 @@ export default function AddTripScreen() {
       return { ...prev, stops: updated };
     });
 
-    // ✅ if user fixes stop date => remove red border for this stop
     setInvalidStopDates((prev) => prev.filter((i) => i !== index));
   };
 
@@ -159,7 +157,7 @@ export default function AddTripScreen() {
   }, [tripData.stops]);
 
   // -----------------------
-  // Navigation (✅ validation)
+  // Navigation (validation)
   // -----------------------
   const handleNext = () => {
     // reset errors each step try
@@ -189,7 +187,7 @@ export default function AddTripScreen() {
         return;
       }
 
-      // ✅ validate stops: if address filled => date required
+      //  validate stops: if address filled => date required
       const invalidIndexes = tripData.stops
         .map((s, i) => ({ ...s, i }))
         .filter((s) => s.address.trim() !== '' && (!s.dateTime || s.dateTime.trim() === ''))
@@ -242,7 +240,7 @@ export default function AddTripScreen() {
         return;
       }
 
-      // ✅ Validate stops again (required stop date if address exists)
+      //  Validate stops again (required stop date if address exists)
       const invalidIndexes = tripData.stops
         .map((s, i) => ({ ...s, i }))
         .filter((s) => s.address.trim() !== '' && (!s.dateTime || s.dateTime.trim() === ''))
@@ -286,25 +284,25 @@ export default function AddTripScreen() {
         if (!dateTimeStr || dateTimeStr.trim() === '') return '';
         const trimmed = dateTimeStr.trim();
 
-        // ✅ already perfect ISO localdatetime
+        // already perfect ISO localdatetime
         if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed;
 
-        // ✅ "YYYY-MM-DD HH:MM"
+        //  "YYYY-MM-DD HH:MM"
         if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) {
           return trimmed.replace(' ', 'T') + ':00';
         }
 
-        // ✅ "YYYY-MM-DDTHH:MM"
+        //  "YYYY-MM-DDTHH:MM"
         if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed)) {
           return trimmed + ':00';
         }
 
-        // ✅ "YYYY-MM-DD" (date only) -> default time 00:00:00
+        //  "YYYY-MM-DD" (date only) -> default time 00:00:00
         if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
           return `${trimmed}T00:00:00`;
         }
 
-        // ✅ accept "YYYY-M-D" too
+        //  accept "YYYY-M-D" too
         if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(trimmed)) {
           const [y, m, d] = trimmed.split('-');
           const mm = m.padStart(2, '0');
@@ -324,7 +322,7 @@ export default function AddTripScreen() {
         arrivalTime: convertToISO(tripData.arrivalDateTime),
         pricePerKg: price,
 
-        // ✅ collection stops (stopTime REQUIRED if address exists)
+        //  collection stops (stopTime REQUIRED if address exists)
         collectionStops: tripData.stops
           .filter((s) => s.address.trim() !== '')
           .map((s) => ({
@@ -340,7 +338,7 @@ export default function AddTripScreen() {
 
       const createdTrip = await createTrip(createTripRequest);
 
-      console.log('[ADD-TRIP] ✅ Trip created successfully:', createdTrip);
+      console.log('[ADD-TRIP]  Trip created successfully:', createdTrip);
 
       Toast.show({
         type: 'success',
@@ -830,7 +828,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ✅ red border style
+  //  red border style
   inputErrorBorder: {
     borderColor: '#DC2626',
     borderWidth: 1,

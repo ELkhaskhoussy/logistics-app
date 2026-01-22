@@ -20,16 +20,16 @@ export default function DashboardScreen() {
 
   const [activeTab, setActiveTab] = useState<'trips' | 'profile'>('trips');
 
-  // ✅ Profile state
+  //  Profile state
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
-  // ✅ Trips state
+  //  Trips state
   const [upcomingTrips, setUpcomingTrips] = useState<any[]>([]);
   const [pastTrips, setPastTrips] = useState<any[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
 
-  // ✅ Load profile
+  //  Load profile
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -49,7 +49,7 @@ export default function DashboardScreen() {
     loadProfile();
   }, []);
 
-      // ✅ Load trips function 
+      //  Load trips function 
       const loadTrips = useCallback(async () => {
         try {
           setLoadingTrips(true);
@@ -82,7 +82,7 @@ export default function DashboardScreen() {
         }
       }, []);
 
-      // ✅ reload trips every time dashboard is focused
+      //  reload trips every time dashboard is focused
       useFocusEffect(
         useCallback(() => {
           loadTrips();
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   priceText: { fontSize: 14, fontWeight: '800', color: '#2563EB' },
   priceTextGray: { fontSize: 14, fontWeight: '800', color: '#111827' },
 
-  // ✅ Profile
+  //  Profile
   profileCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,

@@ -12,7 +12,7 @@ export default function RootLayout() {
         <Stack.Screen name="(transporter)" options={{ headerShown: false }} />
       </Stack>
 
-      {/* ✅ Toast should be here (outside Stack) */}
+      {/*  Toast should be here (outside Stack) */}
       <Toast />
     </>
   );

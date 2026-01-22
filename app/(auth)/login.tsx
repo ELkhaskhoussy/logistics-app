@@ -42,7 +42,7 @@ export default function LoginScreen() {
                 response.userId
             );
 
-            console.log('✅ [LOGIN] Login successful, navigating to:', response.userRole);
+            console.log(' [LOGIN] Login successful, navigating to:', response.userRole);
 
             // Role-based navigation
             if (response.userRole === 'SENDER') {

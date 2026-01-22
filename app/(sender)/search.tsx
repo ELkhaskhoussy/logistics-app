@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 /**
- * ✅ Formats a JS Date into yyyy-MM-dd WITHOUT timezone shifting
+ *  Formats a JS Date into yyyy-MM-dd WITHOUT timezone shifting
  */
 const formatLocalDate = (d: Date) => {
   const year = d.getFullYear();
@@ -40,7 +40,7 @@ export default function SearchScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // ✅ Errors (to highlight inputs)
+  //  Errors (to highlight inputs)
   const [collectionError, setCollectionError] = useState(false);
   const [deliveryError, setDeliveryError] = useState(false);
   const [dateError, setDateError] = useState(false);
@@ -50,12 +50,12 @@ export default function SearchScreen() {
   const handleSearch = () => {
     console.log("Search submitted:", searchData);
 
-    // ✅ Reset errors first
+    //  Reset errors first
     setCollectionError(false);
     setDeliveryError(false);
     setDateError(false);
 
-    // ✅ STEP 1: collection city required
+    //  STEP 1: collection city required
     if (!searchData.collectionCity.trim()) {
       setCollectionError(true);
       Toast.show({
@@ -67,7 +67,7 @@ export default function SearchScreen() {
       return;
     }
 
-    // ✅ STEP 2: delivery city required
+    //  STEP 2: delivery city required
     if (!searchData.deliveryCity.trim()) {
       setDeliveryError(true);
       Toast.show({
@@ -79,7 +79,7 @@ export default function SearchScreen() {
       return;
     }
 
-    // ✅ STEP 3: date required
+    //  STEP 3: date required
     if (!searchData.date.trim()) {
       setDateError(true);
       Toast.show({
@@ -91,7 +91,7 @@ export default function SearchScreen() {
       return;
     }
 
-    // ✅ all good -> navigate
+    //  all good -> navigate
     router.push({
       pathname: "/(sender)/results",
       params: {

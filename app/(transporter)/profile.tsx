@@ -147,7 +147,7 @@ export default function TransporterProfileScreen() {
     };
 
     const pickProfileImage = async () => {
-        // ✅ WEB
+        //  WEB
         if (Platform.OS === "web") {
             const input = document.createElement("input");
             input.type = "file";
@@ -168,7 +168,7 @@ export default function TransporterProfileScreen() {
             return;
         }
 
-        // ✅ MOBILE
+        //  MOBILE
         try {
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 

@@ -12,7 +12,7 @@ import {
 import { apiClient } from '../services/backService';
 
 /**
- * ✅ Convert input city to backend format:
+ *  Convert input city to backend format:
  * "tunis" -> "Tunis"
  * "TuNIs" -> "Tunis"
  */
@@ -47,7 +47,7 @@ export default function ResultsScreen() {
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ normalize only once
+  //  normalize only once
   const departureCity = useMemo(
     () => normalizeCity(collectionCity),
     [collectionCity]
@@ -58,7 +58,7 @@ export default function ResultsScreen() {
     [deliveryCity]
   );
 
-  // ✅ Date from URL (already "yyyy-MM-dd")
+  //  Date from URL (already "yyyy-MM-dd")
   const selectedDate = useMemo(() => (date ?? "").trim(), [date]);
 
   useEffect(() => {
@@ -118,7 +118,7 @@ export default function ResultsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Available Transporters</Text>
 
-            {/* ✅ show date below title only if selected */}
+            {/*  show date below title only if selected */}
             {!!selectedDate && (
               <Text style={styles.headerSubtitle}>Date: {selectedDate}</Text>
             )}
