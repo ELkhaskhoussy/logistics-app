@@ -198,19 +198,33 @@ export default function ResultsScreen() {
                         Arrival: {formatDateTime(trip.arrivalTime)}
                       </Text>
                     </View>
-                  {(() => {
-                      const stop = (trip.collectionStops || []).find(
-                        (s: any) => normalizeCity(s.city) === normalizeCity(deliveryCity)
-                      );
+                    {/* Display ALL collection stops */}
+                    {(() => {
+                      const stops = trip.collectionStops || [];
 
-                      return stop ? (
+                      // Sort stops by order if ordre field exists
+                      const sortedStops = [...stops].sort((a, b) => {
+                        if (a.ordre !== undefined && b.ordre !== undefined) {
+                          return a.ordre - b.ordre;
+                        }
+                        return 0;
+                      });
+
+                      if (sortedStops.length === 0) return null;
+
+                      // Create a formatted string with all stops and dates separated by |
+                      const stopsText = sortedStops
+                        .map(stop => `${stop.city} - ${formatDateTime(stop.stopTime)}`)
+                        .join(" | ");
+
+                      return (
                         <View style={styles.rowLine}>
                           <Feather name="map-pin" size={14} color="#6B7280" />
                           <Text style={styles.route}>
-                            Stop: {stop.city} : {formatDateTime(stop.stopTime)}
+                            Stops: {stopsText}
                           </Text>
                         </View>
-                      ) : null;
+                      );
                     })()}
                     <View style={styles.rowLine}>
                       <Feather name="package" size={14} color="#6B7280" />
