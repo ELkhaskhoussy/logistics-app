@@ -18,7 +18,7 @@ import { getToken } from '../utils/tokenStorage';
  * 'DEV' = Local development (uses your computer's LAN IP for phone testing)
  * 'PROD' = Production deployment (uses live server)
  */
-const ENV_MODE: 'DEV' | 'PROD' = 'DEV'; // ⚠️ Change to 'PROD' before deployment!
+const ENV_MODE: 'DEV' | 'PROD' = 'DEV'; //  Change to 'PROD' before deployment!
 
 /**
  * Backend URLs for different environments
@@ -73,7 +73,7 @@ export const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
     async (config) => {
         // Log request details
-        console.log('[BACK-SERVICE] 🚀 Request:', {
+        console.log('[BACK-SERVICE]  Request:', {
             method: config.method?.toUpperCase(),
             url: config.url,
             baseURL: config.baseURL,
@@ -85,16 +85,16 @@ apiClient.interceptors.request.use(
             const token = await getToken();
             if (token && config.headers) {
                 config.headers.Authorization = `Bearer ${token}`;
-                console.log('[BACK-SERVICE] 🔑 Token injected');
+                console.log('[BACK-SERVICE]  Token injected');
             }
         } catch (error) {
-            console.warn('[BACK-SERVICE] ⚠️ Could not retrieve token:', error);
+            console.warn('[BACK-SERVICE]  Could not retrieve token:', error);
         }
 
         return config;
     },
     (error) => {
-        console.error('[BACK-SERVICE] ❌ Request interceptor error:', error);
+        console.error('[BACK-SERVICE]  Request interceptor error:', error);
         return Promise.reject(error);
     }
 );
@@ -110,7 +110,7 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
     (response) => {
-        console.log('[BACK-SERVICE] ✅ Response:', {
+        console.log('[BACK-SERVICE]  Response:', {
             status: response.status,
             statusText: response.statusText,
             url: response.config.url,
@@ -121,7 +121,7 @@ apiClient.interceptors.response.use(
         const status = error.response?.status;
         const url = error.config?.url;
 
-        console.error('[BACK-SERVICE] ❌ Response error:', {
+        console.error('[BACK-SERVICE] Response error:', {
             url,
             status,
             message: error.message,
@@ -132,20 +132,20 @@ apiClient.interceptors.response.use(
         if (error.response) {
             switch (status) {
                 case 401:
-                    console.error('[BACK-SERVICE] 🔒 Unauthorized - Token may be expired');
+                    console.error('[BACK-SERVICE]  Unauthorized - Token may be expired');
                     break;
                 case 403:
-                    console.error('[BACK-SERVICE] 🚫 Forbidden - Insufficient permissions');
+                    console.error('[BACK-SERVICE]  Forbidden - Insufficient permissions');
                     break;
                 case 404:
-                    console.error('[BACK-SERVICE] 🔍 Not Found');
+                    console.error('[BACK-SERVICE]  Not Found');
                     break;
                 case 500:
-                    console.error('[BACK-SERVICE] 💥 Server Error');
+                    console.error('[BACK-SERVICE]  Server Error');
                     break;
             }
         } else if (error.request) {
-            console.error('[BACK-SERVICE] 📡 No response received - Network issue or server down');
+            console.error('[BACK-SERVICE]  No response received - Network issue or server down');
         }
 
         return Promise.reject(error);
