@@ -5,7 +5,6 @@ import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
-    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -17,43 +16,20 @@ import {
 import { registerUser } from '../services/auth';
 import { saveAuthData } from '../utils/tokenStorage';
 
-const VEHICLE_TYPES = [
-    { label: 'Van', value: 'van' },
-    { label: 'Truck', value: 'truck' },
-    { label: 'Semi-Truck', value: 'semi-truck' },
-    { label: 'Car', value: 'car' },
-];
-
 export default function RegisterTransporterScreen() {
     const router = useRouter();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        phone: '',
-        vehicleType: '',
-        licensePlate: '',
         password: '',
         confirmPassword: '',
     });
-    const [showVehiclePicker, setShowVehiclePicker] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const handleSignUp = async () => {
         // Validate required fields
-        if (!formData.name || !formData.email || !formData.phone || !formData.password) {
+        if (!formData.name || !formData.email || !formData.password) {
             Alert.alert('Error', 'Please fill in all fields!');
-            return;
-        }
-
-        // Validate vehicle type selected
-        if (!formData.vehicleType) {
-            Alert.alert('Error', 'Please select a vehicle type!');
-            return;
-        }
-
-        // Validate license plate
-        if (!formData.licensePlate) {
-            Alert.alert('Error', 'Please enter your license plate!');
             return;
         }
 
@@ -81,10 +57,7 @@ export default function RegisterTransporterScreen() {
                 lastName,
                 email: formData.email,
                 password: formData.password,
-                role: 'TRANSPORTER', // Backend expects uppercase
-                phone: formData.phone, // Include phone even though backend doesn't use it yet
-                vehicleType: formData.vehicleType, // TODO: May need separate endpoint for transporter details
-                licensePlate: formData.licensePlate, // TODO: May need separate endpoint for transporter details
+                role: 'TRANSPORTER',
             });
 
 
@@ -123,21 +96,6 @@ export default function RegisterTransporterScreen() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleGoogleSignUp = () => {
-        console.log('Google Sign Up pressed');
-        // TODO: Implement Google OAuth
-    };
-
-    const selectVehicleType = (value: string) => {
-        setFormData({ ...formData, vehicleType: value });
-        setShowVehiclePicker(false);
-    };
-
-    const getVehicleTypeLabel = () => {
-        const selected = VEHICLE_TYPES.find((v) => v.value === formData.vehicleType);
-        return selected ? selected.label : 'Select vehicle type';
     };
 
     return (
@@ -188,53 +146,6 @@ export default function RegisterTransporterScreen() {
                                     keyboardType="email-address"
                                     autoCapitalize="none"
                                     autoComplete="email"
-                                />
-                            </View>
-
-                            {/* Phone Number Input */}
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Phone Number</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="+216 XX XXX XXX"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={formData.phone}
-                                    onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                                    keyboardType="phone-pad"
-                                    autoComplete="tel"
-                                />
-                            </View>
-
-                            {/* Vehicle Type Picker */}
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Vehicle Type</Text>
-                                <TouchableOpacity
-                                    style={styles.pickerButton}
-                                    onPress={() => setShowVehiclePicker(true)}
-                                    activeOpacity={0.7}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.pickerButtonText,
-                                            !formData.vehicleType && styles.placeholderText,
-                                        ]}
-                                    >
-                                        {getVehicleTypeLabel()}
-                                    </Text>
-                                    <Feather name="chevron-down" size={20} color="#6B7280" />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* License Plate Input */}
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>License Plate</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="123 TUN 4567"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={formData.licensePlate}
-                                    onChangeText={(text) => setFormData({ ...formData, licensePlate: text })}
-                                    autoCapitalize="characters"
                                 />
                             </View>
 
@@ -296,51 +207,6 @@ export default function RegisterTransporterScreen() {
                     </View>
                 </View>
             </ScrollView>
-
-            {/* Vehicle Type Picker Modal */}
-            <Modal
-                visible={showVehiclePicker}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowVehiclePicker(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setShowVehiclePicker(false)}
-                >
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select Vehicle Type</Text>
-                            <TouchableOpacity onPress={() => setShowVehiclePicker(false)}>
-                                <Feather name="x" size={24} color="#6B7280" />
-                            </TouchableOpacity>
-                        </View>
-                        {VEHICLE_TYPES.map((vehicle) => (
-                            <TouchableOpacity
-                                key={vehicle.value}
-                                style={[
-                                    styles.modalOption,
-                                    formData.vehicleType === vehicle.value && styles.selectedOption,
-                                ]}
-                                onPress={() => selectVehicleType(vehicle.value)}
-                            >
-                                <Text
-                                    style={[
-                                        styles.modalOptionText,
-                                        formData.vehicleType === vehicle.value && styles.selectedOptionText,
-                                    ]}
-                                >
-                                    {vehicle.label}
-                                </Text>
-                                {formData.vehicleType === vehicle.value && (
-                                    <Feather name="check" size={20} color="#2563EB" />
-                                )}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
         </KeyboardAvoidingView>
     );
 }
