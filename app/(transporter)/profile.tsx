@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { logoutUser } from '../services/auth';
 import { fetchTransporterProfile, updateTransporterProfile } from '../services/trip';
-import { fetchUserProfile } from '../services/user';
+import { fetchUserProfile, updateUserPhone } from '../services/user';
 import { getToken, getUserId, getUserRole } from '../utils/tokenStorage';
 
 export default function TransporterProfileScreen() {
@@ -34,10 +34,20 @@ export default function TransporterProfileScreen() {
         role: '',
         bio: '',
         profileImageUrl: '',
+        vehicleType: '',
+        licensePlate: '',
     });
     const [editingBio, setEditingBio] = useState(false);
     const [bioText, setBioText] = useState('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+    // New state for vehicle fields
+    const [editingPhone, setEditingPhone] = useState(false);
+    const [phoneText, setPhoneText] = useState('');
+    const [editingVehicleType, setEditingVehicleType] = useState(false);
+    const [vehicleTypeText, setVehicleTypeText] = useState('');
+    const [editingLicensePlate, setEditingLicensePlate] = useState(false);
+    const [licensePlateText, setLicensePlateText] = useState('');
 
     useEffect(() => {
         const init = async () => {
@@ -71,6 +81,13 @@ export default function TransporterProfileScreen() {
 
             // Fetch transporter profile
             const transporterProfile = await fetchTransporterProfile(userId);
+            console.log('[PROFILE] 📸 Transporter profile fetched:', transporterProfile);
+            console.log('[PROFILE] 📸 PhotoUrl from backend:', transporterProfile?.photoUrl);
+
+            // Construct full URL for photo if it exists
+            const photoUrl = transporterProfile?.photoUrl;
+            const fullPhotoUrl = photoUrl ? `${process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.16:8080'}${photoUrl}` : '';
+            console.log('[PROFILE] 📸 Full photo URL constructed:', fullPhotoUrl);
 
             setUserInfo({
                 firstName: userData.firstName,
@@ -79,9 +96,14 @@ export default function TransporterProfileScreen() {
                 phone: userData.phone || '',
                 role: role || userData.role,
                 bio: transporterProfile?.bio || '',
-                profileImageUrl: userData.profileImageUrl || "",
+                profileImageUrl: fullPhotoUrl,
+                vehicleType: transporterProfile?.vehicleType || '',
+                licensePlate: transporterProfile?.licensePlate || '',
             });
             setBioText(transporterProfile?.bio || '');
+            setPhoneText(userData.phone || '');
+            setVehicleTypeText(transporterProfile?.vehicleType || '');
+            setLicensePlateText(transporterProfile?.licensePlate || '');
         } catch (error) {
             console.error('[PROFILE] Failed to load user data:', error);
             Alert.alert('Erreur', 'Impossible de charger les données du profil');
@@ -116,7 +138,7 @@ export default function TransporterProfileScreen() {
             const token = await getToken();
 
             const response = await apiClient.post(
-                `/users/${userId}/upload-profile-photo`,
+                `/catalog/transporters/${userId}/photo`,
                 formData,
                 {
                     headers: {
@@ -126,11 +148,17 @@ export default function TransporterProfileScreen() {
                 }
             );
 
-            const photoUrl = response.data;
+            console.log('[PROFILE] 📸 Upload response:', response.data);
+            // photoUrl from backend is relative (e.g., /uploads/filename.jpg)
+            // Construct full URL for display
+            const photoUrl = response.data.photoUrl;
+            console.log('[PROFILE] 📸 PhotoUrl from upload response:', photoUrl);
+            const fullPhotoUrl = photoUrl ? `${process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.16:8080'}${photoUrl}` : '';
+            console.log('[PROFILE] 📸 Full URL after upload:', fullPhotoUrl);
 
             setUserInfo((prev) => ({
                 ...prev,
-                profileImageUrl: photoUrl,
+                profileImageUrl: fullPhotoUrl,
             }));
 
             Alert.alert("Success", "Profile photo saved!");
@@ -222,6 +250,71 @@ export default function TransporterProfileScreen() {
         }
     };
 
+    const handleSavePhone = async () => {
+        setLoading(true);
+        try {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            await updateUserPhone(userId, phoneText);
+
+            setUserInfo({ ...userInfo, phone: phoneText });
+            setEditingPhone(false);
+            Alert.alert('Succès', 'Numéro de téléphone mis à jour');
+        } catch (error) {
+            console.error('[PROFILE] Failed to update phone:', error);
+            Alert.alert('Erreur', 'Échec de la mise à jour');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveVehicleType = async () => {
+        setLoading(true);
+        try {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            await updateTransporterProfile(userId, {
+                vehicleType: vehicleTypeText,
+                displayName: `${userInfo.firstName} ${userInfo.lastName}`,
+                pricingPerKg: 0,
+            });
+
+            setUserInfo({ ...userInfo, vehicleType: vehicleTypeText });
+            setEditingVehicleType(false);
+            Alert.alert('Succès', 'Type de véhicule mis à jour');
+        } catch (error) {
+            console.error('[PROFILE] Failed to update vehicle type:', error);
+            Alert.alert('Erreur', 'Échec de la mise à jour');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveLicensePlate = async () => {
+        setLoading(true);
+        try {
+            const userId = await getUserId();
+            if (!userId) return;
+
+            await updateTransporterProfile(userId, {
+                licensePlate: licensePlateText,
+                displayName: `${userInfo.firstName} ${userInfo.lastName}`,
+                pricingPerKg: 0,
+            });
+
+            setUserInfo({ ...userInfo, licensePlate: licensePlateText });
+            setEditingLicensePlate(false);
+            Alert.alert('Succès', `Plaque d'immatriculation mise à jour`);
+        } catch (error) {
+            console.error('[PROFILE] Failed to update license plate:', error);
+            Alert.alert('Erreur', 'Échec de la mise à jour');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleLogout = async () => {
         console.log('🔴 [PROFILE] handleLogout called - button clicked!');
 
@@ -247,6 +340,11 @@ export default function TransporterProfileScreen() {
     }
     const avatarUri = selectedImage || userInfo.profileImageUrl;
 
+    // 🔍 Debug: Log what's being used for avatar
+    console.log('[PROFILE] 🖼️ selectedImage:', selectedImage);
+    console.log('[PROFILE] 🖼️ userInfo.profileImageUrl:', userInfo.profileImageUrl);
+    console.log('[PROFILE] 🖼️ Final avatarUri:', avatarUri);
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             {/* Header */}
@@ -256,6 +354,13 @@ export default function TransporterProfileScreen() {
                         <Image
                             source={{ uri: avatarUri }}
                             style={{ width: 96, height: 96, borderRadius: 48 }}
+                            onError={(error) => {
+                                console.error('[PROFILE] ❌ Image failed to load:', error.nativeEvent.error);
+                                console.error('[PROFILE] ❌ Failed URI:', avatarUri);
+                            }}
+                            onLoad={() => {
+                                console.log('[PROFILE] ✅ Image loaded successfully:', avatarUri);
+                            }}
                         />
                     ) : (
                         <Feather name="truck" size={48} color="#FFFFFF" />
@@ -350,6 +455,118 @@ export default function TransporterProfileScreen() {
                 ) : (
                     <Text style={styles.bioText}>
                         {userInfo.bio || 'Aucune bio ajoutée. Cliquez sur l\'icône pour en ajouter une.'}
+                    </Text>
+                )}
+            </View>
+
+            {/* Phone Number Section */}
+            <View style={styles.card}>
+                <View style={styles.bioHeader}>
+                    <Text style={styles.cardTitle}>Numéro de téléphone</Text>
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (editingPhone) {
+                                handleSavePhone();
+                            } else {
+                                setEditingPhone(true);
+                            }
+                        }}
+                        style={styles.editButton}
+                    >
+                        <Feather
+                            name={editingPhone ? "check" : "edit-2"}
+                            size={18}
+                            color="#2563EB"
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {editingPhone ? (
+                    <TextInput
+                        style={styles.bioInput}
+                        placeholder="+216 XX XXX XXX"
+                        placeholderTextColor="#9CA3AF"
+                        value={phoneText}
+                        onChangeText={setPhoneText}
+                        keyboardType="phone-pad"
+                    />
+                ) : (
+                    <Text style={styles.bioText}>
+                        {userInfo.phone || 'Aucun numéro. Cliquez sur l\'icône pour en ajouter un.'}
+                    </Text>
+                )}
+            </View>
+
+            {/* Vehicle Type Section */}
+            <View style={styles.card}>
+                <View style={styles.bioHeader}>
+                    <Text style={styles.cardTitle}>Type de véhicule</Text>
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (editingVehicleType) {
+                                handleSaveVehicleType();
+                            } else {
+                                setEditingVehicleType(true);
+                            }
+                        }}
+                        style={styles.editButton}
+                    >
+                        <Feather
+                            name={editingVehicleType ? "check" : "edit-2"}
+                            size={18}
+                            color="#2563EB"
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {editingVehicleType ? (
+                    <TextInput
+                        style={styles.bioInput}
+                        placeholder="Van, Camion, Voiture..."
+                        placeholderTextColor="#9CA3AF"
+                        value={vehicleTypeText}
+                        onChangeText={setVehicleTypeText}
+                    />
+                ) : (
+                    <Text style={styles.bioText}>
+                        {userInfo.vehicleType || 'Aucun type de véhicule. Cliquez sur l\'icône pour en ajouter un.'}
+                    </Text>
+                )}
+            </View>
+
+            {/* License Plate Section */}
+            <View style={styles.card}>
+                <View style={styles.bioHeader}>
+                    <Text style={styles.cardTitle}>Plaque d'immatriculation</Text>
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (editingLicensePlate) {
+                                handleSaveLicensePlate();
+                            } else {
+                                setEditingLicensePlate(true);
+                            }
+                        }}
+                        style={styles.editButton}
+                    >
+                        <Feather
+                            name={editingLicensePlate ? "check" : "edit-2"}
+                            size={18}
+                            color="#2563EB"
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {editingLicensePlate ? (
+                    <TextInput
+                        style={styles.bioInput}
+                        placeholder="123 TUN 4567"
+                        placeholderTextColor="#9CA3AF"
+                        value={licensePlateText}
+                        onChangeText={setLicensePlateText}
+                    />
+                ) : (
+                    <Text style={styles.bioText}>
+                        {userInfo.licensePlate || 'Aucune plaque. Cliquez sur l\'icône pour en ajouter une.'}
                     </Text>
                 )}
             </View>

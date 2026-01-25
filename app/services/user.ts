@@ -54,6 +54,40 @@ export const fetchUserProfile = async (userId: number): Promise<UserProfile> => 
 };
 
 /**
+ * Update user's phone number
+ */
+export const updateUserPhone = async (userId: number, phone: string): Promise<void> => {
+    console.log(`[USER] Updating phone for user ID: ${userId}`);
+
+    const token = await getToken();
+    if (!token) {
+        throw new Error('No authentication token found');
+    }
+
+    try {
+        await apiClient.put(
+            `/users/${userId}/phone`,
+            { phone },
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            }
+        );
+
+        console.log('[USER] ✅ Phone number updated successfully');
+
+        // Clear cache to force refetch on next profile load
+        const { clearUserCache } = require('../utils/userCache');
+        await clearUserCache();
+
+    } catch (error: any) {
+        console.error('[USER] ❌ Failed to update phone:', error);
+        throw new Error(error.response?.data?.message || 'Failed to update phone number');
+    }
+};
+
+/**
  * Update user profile (future feature)
  * Would invalidate cache and refetch
  */

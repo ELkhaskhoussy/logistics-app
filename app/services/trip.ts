@@ -62,6 +62,8 @@ export interface TransporterProfileDTO {
     displayName: string;
     bio: string;
     pricingPerKg: number;
+    vehicleType?: string;
+    licensePlate?: string;
 }
 
 export interface TransporterProfileResponse {
@@ -70,6 +72,9 @@ export interface TransporterProfileResponse {
     displayName: string;
     bio: string;
     pricingPerKg: number;
+    photoUrl?: string;
+    vehicleType?: string;
+    licensePlate?: string;
 }
 
 // ============================================
