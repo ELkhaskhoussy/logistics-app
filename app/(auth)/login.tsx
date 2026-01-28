@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
+import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -21,6 +22,7 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+   const { promptAsync } = useGoogleAuth();
 
     const handleLogin = async () => {
         console.log('🔵 [LOGIN] handleLogin called');
@@ -67,8 +69,8 @@ export default function LoginScreen() {
     };
 
     const handleGoogleSignIn = () => {
-        console.log('Google Sign In pressed');
-    };
+            promptAsync();
+            };
 
     return (
         <KeyboardAvoidingView
@@ -149,14 +151,14 @@ export default function LoginScreen() {
                             style={styles.googleButton}
                             onPress={handleGoogleSignIn}
                             activeOpacity={0.8}
-                        >
+                            >
                             <Feather name="chrome" size={16} color="#374151" style={styles.googleIcon} />
                             <Text style={styles.googleButtonText}>Sign in with Google</Text>
-                        </TouchableOpacity>
+                            </TouchableOpacity>
 
                         {/* Sign Up Link */}
                         <View style={styles.signUpContainer}>
-                            <Link href="/(role-selection)" asChild>
+                            <Link href="/role-selection" asChild>
                                 <TouchableOpacity activeOpacity={0.7}>
                                     <Text style={styles.signUpText}>
                                         Don't have an account? <Text style={styles.signUpLink}>Sign up</Text>

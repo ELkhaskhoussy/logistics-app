@@ -90,12 +90,19 @@ export interface RegisterUserData {
 }
 
 export interface RegisterResponse {
-    success: boolean;
-    message: string;
-    userId?: number;
-    token?: string;
-    userRole?: string;
+  success: boolean;
+  message: string;
+  userId?: number;
+  token?: string;
+  userRole?: string;
+  needsRole?: boolean;
 }
+export interface CompleteGoogleProfileData {
+  email: string;
+  phone: string;
+  role: "SENDER" | "TRANSPORTER";
+}
+
 
 /**
  * Register a new user (sender or transporter)
@@ -104,6 +111,27 @@ export interface RegisterResponse {
  * @param userData - User registration data
  * @returns Promise with registration response
  */
+export const completeGoogleProfile = async (
+  data: CompleteGoogleProfileData
+) => {
+
+  const res = await fetch("http://localhost:8081/users/auth/google/complete-profile", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json.message || "Profile completion failed");
+  }
+
+  return json;
+};
+
 export const registerUser = async (userData: RegisterUserData): Promise<RegisterResponse> => {
     console.log('[AUTH] 📝 registerUser called with data:', {
         email: userData.email,

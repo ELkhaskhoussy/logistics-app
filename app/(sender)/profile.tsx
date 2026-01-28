@@ -10,12 +10,13 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { logoutUser } from '../services/auth';
 import { fetchUserProfile } from '../services/user';
-import { getUserId, getUserRole } from '../utils/tokenStorage';
+import { useAuth } from '../../scripts/context/AuthContext';
 
 export default function SenderProfileScreen() {
     const router = useRouter();
+    const { logout, userId, role } = useAuth();
+
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState({
         firstName: '',
@@ -28,10 +29,12 @@ export default function SenderProfileScreen() {
     useEffect(() => {
         loadUserInfo();
     }, []);
-
     const loadUserInfo = async () => {
-        const role = await getUserRole();
-        const userId = await getUserId();
+        if (!userId) {
+            console.error('[PROFILE] No userId found');
+            setLoading(false);
+            return;
+            }
 
         if (!userId) {
             console.error('[PROFILE] No userId found in storage');
@@ -48,7 +51,7 @@ export default function SenderProfileScreen() {
                 lastName: userData.lastName,
                 email: userData.email,
                 phone: userData.phone || '',
-                role: role || userData.role,
+                role: role,
             });
         } catch (error) {
             console.error('[PROFILE] Failed to load user data:', error);
@@ -58,21 +61,11 @@ export default function SenderProfileScreen() {
         }
     };
 
-    const handleLogout = async () => {
-        console.log('🔴 [PROFILE] handleLogout called - button WAS clicked!');
+   const handleLogout = () => {
+    logout();
+    router.replace('/(auth)/login' as any);
+};
 
-        try {
-            console.log('[PROFILE] Calling logoutUser...');
-            await logoutUser();
-            console.log('✅ [PROFILE] Logout successful, token cleared');
-            console.log('[PROFILE] Navigating to login...');
-            router.push('/(auth)/login' as any);
-            console.log('[PROFILE] Navigation called');
-        } catch (error) {
-            console.error('❌ [PROFILE] Logout failed:', error);
-            Alert.alert('Error', 'Failed to logout. Please try again.');
-        }
-    };
 
     if (loading) {
         return (
