@@ -1,8 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
- import { useAuth } from '../../scripts/context/AuthContext';
-import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { apiClient } from '../services/auth';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -17,105 +14,61 @@ import {
     View
 } from 'react-native';
 import { loginUser } from '../services/auth';
+import { saveAuthData } from '../utils/tokenStorage';
 
 export default function LoginScreen() {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const { promptAsync } = useGoogleAuth();
-    const { login } = useAuth();
 
-const handleLogin = async () => {
+    const handleLogin = async () => {
+        console.log('🔵 [LOGIN] handleLogin called');
 
-  if (!email || !password) {
-    Alert.alert('Error', 'Please enter email and password');
-    return;
-  }
+        // Validation
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter email and password');
+            return;
+        }
 
-  setLoading(true);
+        setLoading(true);
+        try {
+            const response = await loginUser(email, password);
 
-  try {
-    const response = await loginUser(email, password);
+            // Save token and user data
+            await saveAuthData(
+                response.token,
+                response.userRole,
+                response.userId
+            );
 
-    // Save auth data in AuthContext
-    login(response);
+            console.log(' [LOGIN] Login successful, navigating to:', response.userRole);
 
-    if (response.userRole === 'SENDER') {
-      router.replace('/search');
-    }
-
-    if (response.userRole === 'TRANSPORTER') {
-      router.replace('/dashboard');
-    }
-
-  } catch (error: any) {
-    Alert.alert('Login Failed', error.message || 'Invalid credentials');
-  } finally {
-    setLoading(false);
-  }
-};
-
+            // Role-based navigation
+            if (response.userRole === 'SENDER') {
+                router.replace('/(sender)/search' as any);
+            } else if (response.userRole === 'TRANSPORTER') {
+                router.replace('/(transporter)/dashboard' as any);
+            } else {
+                // Fallback
+                Alert.alert('Success', 'Login successful');
+            }
+        } catch (error: any) {
+            console.error('❌ [LOGIN] Login failed:', error);
+            Alert.alert('Login Failed', error.message || 'Invalid credentials');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSignUp = () => {
         router.push('/(role-selection)' as any);
 
     };
 
-  const handleGoogleLogin = async () => {
-  try {
-
-    const result = await promptAsync();
-
-    if (result?.type !== "success") return;
-
-    const idToken = result.params?.id_token;
-
-    if (!idToken) {
-      Alert.alert("Google login failed");
-      return;
-    }
-
-    const response = await apiClient.post("/users/auth/google", {
-      idToken,
-    });
-
-    const data = response.data;
-
-    console.log("BACKEND RESPONSE:", data);
-
-    if (data.needsRoleSelection) {
-
-      localStorage.setItem(
-        "googleUser",
-        JSON.stringify({
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          imageUrl: data.imageUrl,
-        })
-      );
-
-      router.replace("/role-selection");
-      return;
-    }
-
-    if (data.token) {
-
-      login(data);
-
-      if (data.userRole === "SENDER") router.replace("/search");
-      if (data.userRole === "TRANSPORTER") router.replace("/dashboard");
-    }
-
-  } catch (err) {
-    console.error("Google login error:", err);
-  }
-};
-
-
-
-
+    const handleGoogleSignIn = () => {
+        console.log('Google Sign In pressed');
+    };
 
     return (
         <KeyboardAvoidingView
@@ -194,16 +147,16 @@ const handleLogin = async () => {
                         {/* Google Sign In Button */}
                         <TouchableOpacity
                             style={styles.googleButton}
-                            onPress={handleGoogleLogin}
+                            onPress={handleGoogleSignIn}
                             activeOpacity={0.8}
-                            >
+                        >
                             <Feather name="chrome" size={16} color="#374151" style={styles.googleIcon} />
                             <Text style={styles.googleButtonText}>Sign in with Google</Text>
-                            </TouchableOpacity>
+                        </TouchableOpacity>
 
                         {/* Sign Up Link */}
                         <View style={styles.signUpContainer}>
-                            <Link href="/role-selection" asChild>
+                            <Link href="/(role-selection)" asChild>
                                 <TouchableOpacity activeOpacity={0.7}>
                                     <Text style={styles.signUpText}>
                                         Don't have an account? <Text style={styles.signUpLink}>Sign up</Text>

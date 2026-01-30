@@ -3,148 +3,242 @@ import { Platform } from 'react-native';
 import { clearAuthData } from '../utils/tokenStorage';
 import { clearUserCache } from '../utils/userCache';
 
-/* ======================================================
-   API BASE URL
-====================================================== */
+// Platform-specific API URL configuration
+// Android Emulator: Use 10.0.2.2 to access host machine's localhost
+// iOS Simulator/Web: Use localhost
+const getApiBaseUrl = (): string => {
+    const defaultPort = 8080; // user-service port (confirmed in backend application.yml)
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Platform.OS === 'android'
-    ? 'http://10.0.2.2:8081'
-    : 'http://192.168.1.19:8081');
+    // Check for environment variable first
+    if (process.env.EXPO_PUBLIC_API_URL) {
+        console.log('[AUTH] Using API URL from env:', process.env.EXPO_PUBLIC_API_URL);
+        return process.env.EXPO_PUBLIC_API_URL;
+    }
 
-console.log('[AUTH] API BASE URL:', API_BASE_URL);
+    // Platform-specific URLs
+    if (Platform.OS === 'android') {
+        const androidUrl = `http://10.0.2.2:${defaultPort}`;
+        console.log('[AUTH] Platform: Android - Using emulator URL:', androidUrl);
+        return androidUrl;
+    } else {
+        const localUrl = `http://localhost:${defaultPort}`;
+        console.log('[AUTH] Platform:', Platform.OS, '- Using localhost URL:', localUrl);
+        return localUrl;
+    }
+};
 
-/* ======================================================
-   AXIOS CLIENT
-====================================================== */
+const API_BASE_URL = getApiBaseUrl();
 
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 15000,
+console.log('[AUTH] API Base URL configured as:', API_BASE_URL);
+
+// Create axios instance with default config
+const apiClient = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    timeout: 15000, // 15 seconds timeout
 });
 
-// Log requests
-apiClient.interceptors.request.use((config) => {
-  console.log('[AUTH] 🚀 Request:', config.method?.toUpperCase(), config.url);
-  return config;
-});
-
-// Log responses & throw errors properly
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('[AUTH] ❌ API error:', error.response?.data || error.message);
-    return Promise.reject(error);
-  }
+// Add request interceptor for debugging
+apiClient.interceptors.request.use(
+    (config) => {
+        console.log('[AUTH] 🚀 Making request:', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            baseURL: config.baseURL,
+            fullURL: `${config.baseURL}${config.url}`,
+        });
+        return config;
+    },
+    (error) => {
+        console.error('[AUTH] ❌ Request interceptor error:', error);
+        return Promise.reject(error);
+    }
 );
 
-/* ======================================================
-   TYPES
-====================================================== */
+// Add response interceptor for debugging
+apiClient.interceptors.response.use(
+    (response) => {
+        console.log('[AUTH] ✅ Response received:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: response.data,
+        });
+        return response;
+    },
+    (error) => {
+        console.error('[AUTH] ❌ Response error:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+        });
+        return Promise.reject(error);
+    }
+);
 
+// Types matching backend DTOs
 export interface RegisterUserData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  role: 'SENDER' | 'TRANSPORTER';
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role: 'SENDER' | 'TRANSPORTER';
+    phone?: string;
+    vehicleType?: string;
+    licensePlate?: string;
 }
 
-export interface AuthResponse {
-  userId: number;
-  userRole: string;
-  token: string;
-  message?: string;
+export interface RegisterResponse {
+    success: boolean;
+    message: string;
+    userId?: number;
+    token?: string;
+    userRole?: string;
 }
 
-/* ======================================================
-   SIGNUP
-====================================================== */
+/**
+ * Register a new user (sender or transporter)
+ * Endpoint: POST /signup
+ * 
+ * @param userData - User registration data
+ * @returns Promise with registration response
+ */
+export const registerUser = async (userData: RegisterUserData): Promise<RegisterResponse> => {
+    console.log('[AUTH] 📝 registerUser called with data:', {
+        email: userData.email,
+        role: userData.role,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        hasPhone: !!userData.phone,
+        hasVehicleType: !!userData.vehicleType,
+        hasLicensePlate: !!userData.licensePlate,
+    });
 
-export const registerUser = async (
-  userData: RegisterUserData
-): Promise<AuthResponse> => {
+    try {
+        // Prepare request matching backend SignUpRequest DTO
+        const requestBody = {
+            email: userData.email,
+            password: userData.password,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            role: userData.role, // SENDER or TRANSPORTER (uppercase)
+        };
 
-  console.log('[AUTH] 📝 Signing up:', userData.email);
+        console.log('[AUTH] 📤 Sending registration request to:', `${API_BASE_URL}/users/auth/signup`);
+        console.log('[AUTH] 📦 Request body:', JSON.stringify(requestBody, null, 2));
 
-  const response = await apiClient.post('/users/auth/signup', {
-    email: userData.email,
-    password: userData.password,
-    firstName: userData.firstName,
-    lastName: userData.lastName,
-    role: userData.role,
-  });
+        const response = await apiClient.post('/users/auth/signup', requestBody);
 
-  // backend must return token + userId
-  if (!response.data?.token) {
-    throw new Error('Signup failed: no token returned');
-  }
+        // Backend returns: { token, message, userRole, userId }
+        console.log('[AUTH] ✅ Registration successful!', response.data);
 
-  console.log('[AUTH] ✅ Signup success:', response.data);
+        return {
+            success: true,
+            message: response.data.message || 'Registration successful',
+            userId: response.data.userId,
+            token: response.data.token,
+            userRole: response.data.userRole,
+        };
+    } catch (error: any) {
+        console.error('[AUTH] ❌ Registration error caught:', error);
 
-  return response.data;
+        // Detailed error logging
+        if (error.response) {
+            // Server responded with error status
+            console.error('[AUTH] Server error response:', {
+                status: error.response.status,
+                statusText: error.response.statusText,
+                data: error.response.data,
+                headers: error.response.headers,
+            });
+
+            const errorMessage = error.response.data?.message
+                || error.response.data?.error
+                || `Server error: ${error.response.status}`;
+
+            throw new Error(errorMessage);
+        } else if (error.request) {
+            // Request made but no response received
+            console.error('[AUTH] No response received:', {
+                request: error.request,
+                message: error.message,
+            });
+
+            throw new Error('Unable to connect to server. Please ensure the backend is running on ' + API_BASE_URL);
+        } else {
+            // Something else went wrong
+            console.error('[AUTH] Unexpected error:', error.message);
+            throw new Error('An unexpected error occurred: ' + error.message);
+        }
+    }
 };
 
-/* ======================================================
-   LOGIN
-====================================================== */
+/**
+ * Login user
+ * Endpoint: POST /users/auth/login
+ */
+export const loginUser = async (email: string, password: string) => {
+    console.log('[AUTH] 🔑 loginUser called for:', email);
 
-export const loginUser = async (
-  email: string,
-  password: string
-): Promise<AuthResponse> => {
+    try {
+        const response = await apiClient.post('/users/auth/login', {
+            email,
+            password,
+        });
 
-  console.log('[AUTH] 🔑 Logging in:', email);
+        console.log('[AUTH] ✅ Login successful!', response.data);
 
-  const response = await apiClient.post('/users/auth/login', {
-    email,
-    password,
-  });
+        return {
+            success: true,
+            ...response.data,
+        };
+    } catch (error: any) {
+        console.error('[AUTH] ❌ Login error:', error);
 
-  if (!response.data?.token) {
-    throw new Error('Login failed: no token returned');
-  }
+        if (error.response) {
+            // Server responded with error
+            const status = error.response.status;
+            const message = error.response.data?.message;
 
-  console.log('[AUTH] ✅ Login success:', response.data);
-
-  return response.data;
+            if (status === 401 || status === 403) {
+                // Invalid credentials
+                throw new Error(message || 'Invalid email or password');
+            } else if (status === 404) {
+                // User not found
+                throw new Error('Email address not found. Please sign up first.');
+            } else {
+                // Other server errors
+                throw new Error(message || 'Login failed. Please try again.');
+            }
+        } else if (error.request) {
+            // Request made but no response
+            throw new Error('Unable to connect to server. Please check your internet connection.');
+        } else {
+            // Something else went wrong
+            throw new Error('An unexpected error occurred. Please try again.');
+        }
+    }
 };
 
-/* ======================================================
-   GOOGLE COMPLETE PROFILE
-====================================================== */
-
-export const completeGoogleProfile = async (data: {
-  email: string;
-  phone: string;
-  role: 'SENDER' | 'TRANSPORTER';
-}) => {
-
-  const response = await apiClient.post(
-    '/users/auth/google/complete-profile',
-    data
-  );
-
-  return response.data;
-};
-
-/* ======================================================
-   LOGOUT
-====================================================== */
-
+/**
+ * Logout user
+ * Clears all stored authentication data
+ */
 export const logoutUser = async () => {
-  await clearAuthData();
-  await clearUserCache();
-  console.log('[AUTH] 👋 Logged out');
+    console.log('[AUTH] 👋 logoutUser called');
+    try {
+        await clearAuthData();
+        await clearUserCache();
+        console.log('[AUTH] ✅ Logout successful - token and cache cleared');
+    } catch (error) {
+        console.error('[AUTH] ❌ Logout error:', error);
+        throw error;
+    }
 };
 
 export default {
-  registerUser,
-  loginUser,
-  completeGoogleProfile,
-  logoutUser,
+    registerUser,
+    loginUser,
+    logoutUser,
 };
