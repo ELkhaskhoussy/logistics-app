@@ -2,16 +2,15 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import { useAuth } from '../../scripts/context/AuthContext';
-import apiClient from '../networking/client';
-import { ENDPOINTS } from '../networking/endpoints';
-import { saveAuthData } from '../utils/tokenStorage';
 
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function RoleSelection() {
   const router = useRouter();
-
+  
   const { login } = useAuth();
+
+const handleSelectRole = async (role: "SENDER" | "TRANSPORTER") => {
 
   const handleSelectRole = async (role: "SENDER" | "TRANSPORTER") => {
 
@@ -40,9 +39,14 @@ export default function RoleSelection() {
     try {
       console.log('[ROLE-SELECTION] 🎯 Selected role:', role);
 
-      const response = await apiClient.post(
-        ENDPOINTS.AUTH.GOOGLE_REGISTER,
-        {
+  try {
+
+    const response = await fetch(
+      "http://localhost:8081/users/auth/google/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           email: googleUser.email,
           firstName: googleUser.firstName,
           lastName: googleUser.lastName,
@@ -60,38 +64,31 @@ export default function RoleSelection() {
         throw new Error(data.message || "Google register failed");
       }
 
-      // Save session
-      console.log('[ROLE-SELECTION] 💾 Saving to AuthContext...');
-      login(data);
-      console.log('[ROLE-SELECTION] 💾 Saving to tokenStorage...');
-      await saveAuthData(data.token, data.userRole, data.userId);
+    const data = await response.json();
 
-      // Verify what was saved
-      const savedRole = localStorage.getItem('user_role');
-      console.log('[ROLE-SELECTION] ✅ Verified saved role in localStorage:', savedRole);
-
-      // cleanup temp google data
-      localStorage.removeItem("googleUser");
-
-      // Redirect based on role
-      console.log('[ROLE-SELECTION] 🚀 About to redirect...');
-      if (data.userRole === "SENDER") {
-        console.log('[ROLE-SELECTION] → Redirecting to SENDER search');
-        router.replace("/(sender)/search" as any);
-      } else if (data.userRole === "TRANSPORTER") {
-        console.log('[ROLE-SELECTION] → Redirecting to TRANSPORTER dashboard');
-        router.replace("/(transporter)/dashboard" as any);
-      } else {
-        console.error('[ROLE-SELECTION] ⚠️ Unknown role from backend:', data.userRole);
-        alert('Unknown role: ' + data.userRole);
-      }
-
-    } catch (error: any) {
-      console.error('[ROLE-SELECTION] ❌ Error:', error);
-      const errorMessage = error.response?.data?.message || error.message || "Registration failed";
-      alert(errorMessage);
+    if (!response.ok) {
+      throw new Error(data.message || "Google register failed");
     }
-  };
+
+    // Save session
+    login(data);
+
+    // cleanup temp google data
+    localStorage.removeItem("googleUser");
+
+    // Redirect
+    if (data.userRole === "SENDER") {
+      router.replace("/search");
+    }
+
+    if (data.userRole === "TRANSPORTER") {
+      router.replace("/dashboard");
+    }
+
+  } catch (error) {
+    console.error("Role selection error:", error);
+  }
+};
 
 
 
