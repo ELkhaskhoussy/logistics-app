@@ -1,12 +1,16 @@
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
+import { useAuth } from '../../scripts/context/AuthContext';
+
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function RoleSelection() {
   const router = useRouter();
+  
+  const { login } = useAuth();
 
- const handleSelectRole = async (role: "SENDER" | "TRANSPORTER") => {
+const handleSelectRole = async (role: "SENDER" | "TRANSPORTER") => {
 
   const googleUserRaw = localStorage.getItem("googleUser");
 
@@ -31,7 +35,8 @@ export default function RoleSelection() {
   const googleUser = JSON.parse(googleUserRaw);
 
   try {
-    const res = await fetch(
+
+    const response = await fetch(
       "http://localhost:8081/users/auth/google/register",
       {
         method: "POST",
@@ -46,32 +51,31 @@ export default function RoleSelection() {
       }
     );
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if (!res.ok) {
-      throw new Error(data.message || "Role update failed");
+    if (!response.ok) {
+      throw new Error(data.message || "Google register failed");
     }
 
-    console.log("ROLE UPDATE RESPONSE:", data);
+    // Save session
+    login(data);
 
-    // Save token
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("role", data.userRole);
-    localStorage.setItem("userId", data.userId);
+    // cleanup temp google data
+    localStorage.removeItem("googleUser");
 
-    // Redirect to profile completion
-    if (role === "SENDER") {
-      router.replace("/register-sender");
-    } else {
-      router.replace("/register-transporter");
+    // Redirect
+    if (data.userRole === "SENDER") {
+      router.replace("/search");
     }
 
-  } catch (err) {
-    console.error("Role selection error:", err);
+    if (data.userRole === "TRANSPORTER") {
+      router.replace("/dashboard");
+    }
+
+  } catch (error) {
+    console.error("Role selection error:", error);
   }
 };
-
-
 
 
 

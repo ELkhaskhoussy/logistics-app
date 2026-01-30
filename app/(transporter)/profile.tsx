@@ -1,364 +1,233 @@
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
 
-import { apiClient } from "../services/backService";
-import { fetchTransporterProfile, updateTransporterProfile } from "../services/trip";
-import { fetchUserProfile, updateUserPhone } from "../services/user";
-import { getToken, getUserId, getUserRole } from "../utils/tokenStorage";
+import { useAuth } from "../../scripts/context/AuthContext";
+import { getUserById } from "../services/user";
+import { fetchTransporterProfile } from "../services/trip";
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
+  const { userId, role, logout,loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const [userInfo, setUserInfo] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
     role: "",
     bio: "",
-    profileImageUrl: "",
     vehicleType: "",
     licensePlate: "",
   });
 
-  const [editingBio, setEditingBio] = useState(false);
-  const [bioText, setBioText] = useState("");
-
-  const [editingPhone, setEditingPhone] = useState(false);
-  const [phoneText, setPhoneText] = useState("");
-
-  const [editingVehicleType, setEditingVehicleType] = useState(false);
-  const [vehicleTypeText, setVehicleTypeText] = useState("");
-
-  const [editingLicensePlate, setEditingLicensePlate] = useState(false);
-  const [licensePlateText, setLicensePlateText] = useState("");
-
-  useEffect(() => {
+useEffect(() => {
+  if (!authLoading && userId) {
     loadUserInfo();
-  }, []);
+  }
+}, [authLoading, userId]);
+
 
   const loadUserInfo = async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    if (role !== "TRANSPORTER") {
+      router.replace("/(sender)/profile" as any);
+      return;
+    }
+
     try {
-      const userId = await getUserId();
-      const role = await getUserRole();
-
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-
-      if (role !== "TRANSPORTER") {
-        router.replace("/(sender)/profile" as any);
-        return;
-      }
-
-      const userData = await fetchUserProfile(userId);
-      const transporterProfile = await fetchTransporterProfile(userId);
+      const userData = await getUserById(Number(userId));
+      const transporterProfile = await fetchTransporterProfile(Number(userId));
 
       setUserInfo({
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
-        phone: userData.phone || "",
         role,
-        bio: transporterProfile?.bio || "",
-        profileImageUrl: transporterProfile?.photoUrl || "",
-        vehicleType: transporterProfile?.vehicleType || "",
-        licensePlate: transporterProfile?.licensePlate || "",
+        bio: transporterProfile?.bio || "Not set",
+        vehicleType: transporterProfile?.vehicleType || "Not set",
+        licensePlate: transporterProfile?.licensePlate || "Not set",
       });
-
-      setBioText(transporterProfile?.bio || "");
-      setPhoneText(userData.phone || "");
-      setVehicleTypeText(transporterProfile?.vehicleType || "");
-      setLicensePlateText(transporterProfile?.licensePlate || "");
 
     } catch (error) {
-      console.error("Load profile error:", error);
-      Alert.alert("Error", "Failed to load profile");
+      console.error("Profile load error:", error);
+      Alert.alert("Error", "Could not load profile");
     } finally {
       setLoading(false);
     }
   };
-
-  // ================= PHOTO =================
-
-  const uploadProfilePhoto = async (uri: string) => {
-    try {
-      const userId = await getUserId();
-      const token = await getToken();
-
-      if (!userId || !token) return;
-
-      const formData = new FormData();
-
-      const filename = uri.split("/").pop() || "profile.jpg";
-      const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : "image/jpeg";
-
-      formData.append("file", {
-        uri,
-        name: filename,
-        type,
-      } as any);
-
-      const response = await apiClient.post(
-        `/catalog/transporters/${userId}/photo`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setUserInfo((prev) => ({
-        ...prev,
-        profileImageUrl: response.data.photoUrl,
-      }));
-
-      Alert.alert("Success", "Photo updated");
-
-    } catch (error) {
-      console.error("Upload error:", error);
-      Alert.alert("Error", "Upload failed");
-    }
-  };
-
-  const pickProfileImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (permission.status !== "granted") {
-      Alert.alert("Permission required");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setSelectedImage(uri);
-      uploadProfilePhoto(uri);
-    }
-  };
-
-  // ================= SAVE =================
-
-  const handleSaveBio = async () => {
-    const userId = await getUserId();
-    if (!userId) return;
-
-    setLoading(true);
-
-    try {
-      await updateTransporterProfile(userId, {
-        bio: bioText,
-        displayName: `${userInfo.firstName} ${userInfo.lastName}`,
-        pricingPerKg: 0,
-      });
-
-      setUserInfo({ ...userInfo, bio: bioText });
-      setEditingBio(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSavePhone = async () => {
-    const userId = await getUserId();
-    if (!userId) return;
-
-    setLoading(true);
-
-    try {
-      await updateUserPhone(userId, phoneText);
-      setUserInfo({ ...userInfo, phone: phoneText });
-      setEditingPhone(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveVehicleType = async () => {
-    const userId = await getUserId();
-    if (!userId) return;
-
-    setLoading(true);
-
-    try {
-      await updateTransporterProfile(userId, {
-        vehicleType: vehicleTypeText,
-        displayName: `${userInfo.firstName} ${userInfo.lastName}`,
-        pricingPerKg: 0,
-      });
-
-      setUserInfo({ ...userInfo, vehicleType: vehicleTypeText });
-      setEditingVehicleType(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveLicensePlate = async () => {
-    const userId = await getUserId();
-    if (!userId) return;
-
-    setLoading(true);
-
-    try {
-      await updateTransporterProfile(userId, {
-        licensePlate: licensePlateText,
-        displayName: `${userInfo.firstName} ${userInfo.lastName}`,
-        pricingPerKg: 0,
-      });
-
-      setUserInfo({ ...userInfo, licensePlate: licensePlateText });
-      setEditingLicensePlate(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ================= UI =================
 
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
   }
 
-  const avatarUri = selectedImage || userInfo.profileImageUrl;
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          {avatarUri ? (
-            <Image
-              source={{ uri: avatarUri }}
-              style={{ width: 96, height: 96, borderRadius: 48 }}
-            />
-          ) : (
-            <Feather name="truck" size={48} color="#fff" />
-          )}
+          <Feather name="truck" size={48} color="#FFFFFF" />
         </View>
-
-        <TouchableOpacity onPress={pickProfileImage} style={styles.photoButton}>
-          <Text style={styles.photoButtonText}>Change photo</Text>
-        </TouchableOpacity>
-
         <Text style={styles.title}>Transporter Profile</Text>
+        <Text style={styles.subtitle}>Manage your account</Text>
       </View>
 
-      <ProfileCard label="Bio" value={userInfo.bio} editing={editingBio} setEditing={setEditingBio} text={bioText} setText={setBioText} onSave={handleSaveBio} />
-      <ProfileCard label="Phone" value={userInfo.phone} editing={editingPhone} setEditing={setEditingPhone} text={phoneText} setText={setPhoneText} onSave={handleSavePhone} />
-      <ProfileCard label="Vehicle Type" value={userInfo.vehicleType} editing={editingVehicleType} setEditing={setEditingVehicleType} text={vehicleTypeText} setText={setVehicleTypeText} onSave={handleSaveVehicleType} />
-      <ProfileCard label="License Plate" value={userInfo.licensePlate} editing={editingLicensePlate} setEditing={setEditingLicensePlate} text={licensePlateText} setText={setLicensePlateText} onSave={handleSaveLicensePlate} />
+      {/* Profile Info */}
+      <View style={styles.card}>
+
+        <InfoRow icon="user" label="First Name" value={userInfo.firstName} />
+        <InfoRow icon="user" label="Last Name" value={userInfo.lastName} />
+        <InfoRow icon="mail" label="Email" value={userInfo.email} />
+        <InfoRow icon="briefcase" label="Role" value={userInfo.role} />
+
+        <InfoRow icon="info" label="Bio" value={userInfo.bio} />
+        <InfoRow icon="truck" label="Vehicle Type" value={userInfo.vehicleType} />
+        <InfoRow icon="hash" label="License Plate" value={userInfo.licensePlate} />
+
+      </View>
+
+      {/* Logout */}
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={() => {
+          logout();
+          router.replace("/(auth)/login" as any);
+        }}
+        activeOpacity={0.8}
+      >
+        <Feather name="log-out" size={20} color="#FFFFFF" />
+        <Text style={styles.logoutButtonText}>Log Out</Text>
+      </TouchableOpacity>
 
     </ScrollView>
   );
 }
 
-function ProfileCard({ label, value, editing, setEditing, text, setText, onSave }: any) {
+function InfoRow({ icon, label, value }: any) {
   return (
-    <View style={styles.card}>
-      <View style={styles.bioHeader}>
-        <Text style={styles.cardTitle}>{label}</Text>
-        <TouchableOpacity
-          onPress={() => editing ? onSave() : setEditing(true)}
-          style={styles.editButton}
-        >
-          <Feather name={editing ? "check" : "edit-2"} size={18} color="#2563EB" />
-        </TouchableOpacity>
+    <View style={styles.infoRow}>
+      <Feather name={icon} size={20} color="#6B7280" />
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={styles.infoValue}>{value || "N/A"}</Text>
       </View>
-
-      {editing ? (
-        <TextInput
-          style={styles.bioInput}
-          value={text}
-          onChangeText={setText}
-        />
-      ) : (
-        <Text style={styles.bioText}>{value || "Not set"}</Text>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
-  centered: { justifyContent: "center", alignItems: "center" },
-  content: { padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  centered: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  content: {
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6B7280",
+  },
 
-  header: { alignItems: "center", marginBottom: 24 },
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+    marginTop: 20,
+  },
 
   avatarContainer: {
     width: 96,
     height: 96,
     borderRadius: 48,
     backgroundColor: "#2563EB",
-    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
-  },
-
-  title: { fontSize: 22, fontWeight: "bold" },
-
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    justifyContent: "center",
     marginBottom: 16,
   },
 
-  bioHeader: { flexDirection: "row", justifyContent: "space-between" },
-
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-
-  bioInput: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 4,
   },
 
-  bioText: { marginTop: 8 },
-
-  editButton: { padding: 6 },
-
-  photoButton: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 12,
+  subtitle: {
+    fontSize: 14,
+    color: "#6B7280",
   },
 
-  photoButtonText: { color: "#fff" },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    elevation: 2,
+  },
+
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+
+  infoContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+
+  infoLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+
+  infoValue: {
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "500",
+  },
+
+  logoutButton: {
+    backgroundColor: "#DC2626",
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 32,
+  },
+
+  logoutButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
