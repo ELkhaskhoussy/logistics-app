@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { getToken } from '../utils/tokenStorage';
 import { getUserFromCache, saveUserToCache, UserProfile } from '../utils/userCache';
 import { apiClient } from './backService';
@@ -94,4 +95,50 @@ export const updateUserPhone = async (userId: number, phone: string): Promise<vo
 export const updateUserProfile = async (userId: number, updates: Partial<UserProfile>): Promise<UserProfile> => {
     // TODO: Implement PUT /users/{id} endpoint
     throw new Error('Not implemented yet');
+=======
+/**
+ * User Service
+ * 
+ * Handles user-related operations:
+ * - Get user by ID
+ * - Update user phone
+ * - Update user profile
+ */
+
+import apiClient from '../networking/client';
+import { ENDPOINTS } from '../networking/endpoints';
+import type { User } from '../networking/types';
+
+/* ======================================================
+   GET USER BY ID
+====================================================== */
+
+export const getUserById = async (id: number): Promise<User> => {
+  const response = await apiClient.get<User>(ENDPOINTS.USERS.GET_BY_ID(id));
+  return response.data;
+};
+
+/* ======================================================
+   UPDATE USER PHONE
+====================================================== */
+
+export const updateUserPhone = async (
+  id: number,
+  phone: string
+): Promise<User> => {
+  const response = await apiClient.put<User>(
+    ENDPOINTS.USERS.UPDATE_PHONE(id),
+    { phone }
+  );
+  return response.data;
+};
+
+/* ======================================================
+   EXPORTS
+====================================================== */
+
+export default {
+  getUserById,
+  updateUserPhone,
+>>>>>>> ddf968e (fixing last rebase)
 };

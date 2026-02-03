@@ -7,18 +7,32 @@ export default function Index() {
 
   useEffect(() => {
     const init = async () => {
+      console.log('[INDEX] 🔍 Loading auth state...');
+
       const token = await getToken();
       const role = await getUserRole();
 
+      console.log('[INDEX] 🔑 Token exists:', !!token);
+      console.log('[INDEX] 👤 Role loaded:', role);
+      console.log('[INDEX] 📝 Role type:', typeof role);
+
       if (!token) {
+        console.log('[INDEX] → No token, redirecting to login');
         setRedirectTo("/(auth)/login");
         return;
       }
 
+      // Handle role-based routing
       if (role === "TRANSPORTER") {
+        console.log('[INDEX] ✅ Role is TRANSPORTER → dashboard');
         setRedirectTo("/(transporter)/dashboard");
-      } else {
+      } else if (role === "SENDER") {
+        console.log('[INDEX] ✅ Role is SENDER → search');
         setRedirectTo("/(sender)/search");
+      } else {
+        // Safe default: redirect to login if role is unknown/missing
+        console.warn('[INDEX] ⚠️ Unknown role:', role, '→ redirecting to login');
+        setRedirectTo("/(auth)/login");
       }
     };
 

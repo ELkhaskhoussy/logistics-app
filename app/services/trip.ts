@@ -1,19 +1,23 @@
-import { getToken } from '../utils/tokenStorage';
-import { API_BASE_URL, apiClient } from './backService';
+/**
+ * Trip Service
+ * 
+ * Handles trip-related operations:
+ * - Create/update/delete trips
+ * - Search trips
+ * - Get transporter's trips
+ */
 
-// Using centralized backend service configuration
-console.log('[TRIP-SERVICE] Using API_BASE_URL:', API_BASE_URL);
+import apiClient from '../networking/client';
+import { ENDPOINTS, buildQueryString } from '../networking/endpoints';
+import type { CreateTripRequest, SearchTripsParams, Trip, UpdateTripRequest } from '../networking/types';
 
-// ============================================
-// Collection & Delivery Stop DTOs
-// ============================================
-
+// Re-export types from original file for backward compatibility
 export interface CollectionStopDTO {
     city?: string;
     locationName?: string;
     fullAddress?: string;
-    startTime?: string;  // ISO format LocalDateTime
-    endTime?: string;    // ISO format LocalDateTime
+    startTime?: string;
+    endTime?: string;
 }
 
 export interface DeliveryStopDTO {
@@ -24,251 +28,133 @@ export interface DeliveryStopDTO {
     endTime?: string;
 }
 
-// ============================================
-// Trip DTOs
-// ============================================
-
-export interface CreateTripRequest {
-    transporterId: number;
-    totalCapacityKg: number;
-    departureCity: string;
-    arrivalCity: string;
-    departureTime: string;  // ISO8601 format
-    arrivalTime: string;    // ISO8601 format
-    pricePerKg: number;
-    collectionStops: CollectionStopDTO[];
-    deliveryStops: DeliveryStopDTO[];
+export interface ExtendedCreateTripRequest extends CreateTripRequest {
+    collectionStops?: CollectionStopDTO[];
+    deliveryStops?: DeliveryStopDTO[];
 }
 
-export interface Trip {
-    id: string;
-    transporterId: number;
-    status: string;
-    totalCapacityKg: number;
-    availableCapacityKg: number;
-    departureCity: string;
-    arrivalCity: string;
-    departureTime: string;
-    arrivalTime: string;
-    pricePerKg: number;
-    createdAt: string;
-}
+/* ======================================================
+   CREATE TRIP
+====================================================== */
 
-// ============================================
-// Transporter Profile DTOs
-// ============================================
+export const createTrip = async (
+    tripData: ExtendedCreateTripRequest
+): Promise<Trip> => {
+    console.log('[TRIP] Creating trip:', tripData);
 
-export interface TransporterProfileDTO {
-    displayName: string;
-    bio: string;
-    pricingPerKg: number;
-    vehicleType?: string;
-    licensePlate?: string;
-}
+    const response = await apiClient.post<Trip>(
+        ENDPOINTS.CATALOG.CREATE_TRIP,
+        tripData
+    );
 
-export interface TransporterProfileResponse {
-    id: number;
-    userId: number;
-    displayName: string;
-    bio: string;
-    pricingPerKg: number;
-    photoUrl?: string;
-    vehicleType?: string;
-    licensePlate?: string;
-}
-
-// ============================================
-// Trip Management Functions
-// ============================================
-
-/**
- * Create a new trip
- */
-export const createTrip = async (tripData: CreateTripRequest): Promise<Trip> => {
-    console.log('[TRIP] Creating trip with data:', tripData);
-
-    const token = await getToken();
-    if (!token) {
-        throw new Error('No authentication token found. Please login again.');
-    }
-
-    try {
-        const response = await apiClient.post(
-            '/catalog/trips',
-            tripData,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            }
-        );
-
-        console.log('[TRIP] ✅ Trip created successfully:', response.data);
-        return response.data;
-    } catch (error: any) {
-        console.error('[TRIP] ❌ Failed to create trip:', error);
-        console.error('[TRIP] Error details:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status,
-            headers: error.response?.headers,
-        });
-
-        if (error.response) {
-            const status = error.response.status;
-            const message = error.response.data?.message || error.response.data?.error;
-            const fullError = JSON.stringify(error.response.data, null, 2);
-
-            console.error('[TRIP] Server returned:', fullError);
-
-            if (status === 401 || status === 403) {
-                throw new Error('Authentication failed. Please login again.');
-            } else if (status === 400) {
-                throw new Error(message || `Invalid trip data: ${fullError}`);
-            } else {
-                throw new Error(message || `Failed to create trip (Error ${status})`);
-            }
-        } else if (error.request) {
-            console.error('[TRIP] No response from server. Request:', error.request);
-            throw new Error('Unable to connect to server. Please check your internet connection.');
-        } else {
-            throw new Error('An unexpected error occurred');
-        }
-    }
+    console.log('[TRIP] ✅ Trip created:', response.data.id);
+    return response.data;
 };
 
-/**
- * Fetch trips for a transporter
- */
-export const fetchTransporterTrips = async (transporterId: number): Promise<Trip[]> => {
-    console.log(`[TRIP] Fetching trips for transporter ID: ${transporterId}`);
+/* ======================================================
+   GET TRIP BY ID
+====================================================== */
 
-    const token = await getToken();
-    if (!token) {
-        throw new Error('No authentication token found');
-    }
-
-    try {
-        const response = await apiClient.get(
-            `/catalog/trips/transporter/${transporterId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            }
-        );
-
-        console.log('[TRIP] ✅ Trips fetched:', response.data);
-        return response.data;
-    } catch (error: any) {
-        console.error('[TRIP] ❌ Failed to fetch trips:', error);
-
-        if (error.response) {
-            throw new Error(error.response.data?.message || 'Failed to fetch trips');
-        } else if (error.request) {
-            throw new Error('Unable to connect to server');
-        } else {
-            throw new Error('An unexpected error occurred');
-        }
-    }
+export const getTripById = async (tripId: string | number): Promise<Trip> => {
+    const response = await apiClient.get<Trip>(ENDPOINTS.CATALOG.GET_TRIP(tripId));
+    return response.data;
 };
 
-// ============================================
-// Transporter Profile Management
-// ============================================
+/* ======================================================
+   UPDATE TRIP
+====================================================== */
 
-/**
- * Create a new transporter profile
- */
-export const createTransporterProfile = async (
-    userId: number,
-    profileData: TransporterProfileDTO
-): Promise<void> => {
-    console.log(`[TRANSPORTER] Creating profile for user ID: ${userId}`);
+export const updateTrip = async (
+    tripId: string | number,
+    updates: UpdateTripRequest
+): Promise<Trip> => {
+    console.log('[TRIP] Updating trip:', tripId);
 
-    const token = await getToken();
-    if (!token) {
-        throw new Error('No authentication token found');
-    }
+    const response = await apiClient.put<Trip>(
+        ENDPOINTS.CATALOG.UPDATE_TRIP(tripId),
+        updates
+    );
 
-    try {
-        await apiClient.post(
-            `/catalog/transporters?userId=${userId}`,
-            profileData,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            }
-        );
-        console.log('[TRANSPORTER] ✅ Profile created successfully');
-    } catch (error: any) {
-        console.error('[TRANSPORTER] ❌ Failed to create profile:', error);
-        throw new Error(error.response?.data?.error || 'Failed to create transporter profile');
-    }
+    console.log('[TRIP] ✅ Trip updated');
+    return response.data;
 };
 
-/**
- * Fetch transporter profile by user ID
- */
-export const fetchTransporterProfile = async (
-    userId: number
-): Promise<TransporterProfileResponse | null> => {
-    console.log(`[TRANSPORTER] Fetching profile for user ID: ${userId}`);
+/* ======================================================
+   DELETE TRIP
+====================================================== */
 
-    const token = await getToken();
-    if (!token) {
-        throw new Error('No authentication token found');
-    }
+export const deleteTrip = async (tripId: string | number): Promise<void> => {
+    console.log('[TRIP] Deleting trip:', tripId);
 
-    try {
-        const response = await apiClient.get(
-            `/catalog/transporters/${userId}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            }
-        );
-        console.log('[TRANSPORTER] ✅ Profile fetched:', response.data);
-        return response.data;
-    } catch (error: any) {
-        if (error.response?.status === 404) {
-            console.log('[TRANSPORTER] Profile not found');
-            return null;
-        }
-        console.error('[TRANSPORTER] ❌ Failed to fetch profile:', error);
-        throw new Error('Failed to fetch transporter profile');
-    }
+    await apiClient.delete(ENDPOINTS.CATALOG.DELETE_TRIP(tripId));
+
+    console.log('[TRIP] ✅ Trip deleted');
 };
 
-/**
- * Update transporter profile
- */
-export const updateTransporterProfile = async (
-    userId: number,
-    updates: Partial<TransporterProfileDTO>
-): Promise<void> => {
-    console.log(`[TRANSPORTER] Updating profile for user ID: ${userId}`);
+/* ======================================================
+   GET TRANSPORTER TRIPS
+====================================================== */
 
-    const token = await getToken();
-    if (!token) {
-        throw new Error('No authentication token found');
-    }
+export const fetchTransporterTrips = async (
+    transporterId: number
+): Promise<Trip[]> => {
+    console.log('[TRIP] Fetching trips for transporter:', transporterId);
 
-    try {
-        await apiClient.put(
-            `/catalog/transporters/${userId}`,
-            updates,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            }
-        );
-        console.log('[TRANSPORTER] ✅ Profile updated successfully');
-    } catch (error: any) {
-        console.error('[TRANSPORTER] ❌ Failed to update profile:', error);
-        throw new Error('Failed to update transporter profile');
-    }
+    const response = await apiClient.get<Trip[]>(
+        ENDPOINTS.CATALOG.GET_TRANSPORTER_TRIPS(transporterId)
+    );
+
+    console.log('[TRIP] ✅ Fetched', response.data.length, 'trips');
+    return response.data;
+};
+
+/* ======================================================
+   SEARCH TRIPS
+====================================================== */
+
+export const searchTrips = async (
+    params: SearchTripsParams
+): Promise<Trip[]> => {
+    console.log('[TRIP] Searching trips:', params);
+
+    const queryString = buildQueryString(params);
+    const url = `${ENDPOINTS.CATALOG.SEARCH_TRIPS}${queryString}`;
+
+    const response = await apiClient.get<Trip[]>(url);
+
+    console.log('[TRIP] ✅ Found', response.data.length, 'trips');
+    return response.data;
+};
+
+/* ======================================================
+   LEGACY EXPORTS (for backward compatibility)
+====================================================== */
+
+// Re-export transporter profile functions from transporter service
+// These will eventually be removed once components are updated
+import {
+    createTransporterProfile as createProfile,
+    getTransporterProfile as fetchProfile,
+    updateTransporterProfile as updateProfile,
+} from './transporter';
+
+export const createTransporterProfile = createProfile;
+export const fetchTransporterProfile = fetchProfile;
+export const updateTransporterProfile = updateProfile;
+
+/* ======================================================
+   EXPORTS
+====================================================== */
+
+export default {
+    createTrip,
+    getTripById,
+    updateTrip,
+    deleteTrip,
+    fetchTransporterTrips,
+    searchTrips,
+    // Legacy transporter profile functions
+    createTransporterProfile,
+    fetchTransporterProfile,
+    updateTransporterProfile,
 };
