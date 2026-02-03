@@ -1,8 +1,25 @@
-import axios from 'axios';
-import { Platform } from 'react-native';
+/**
+ * Authentication Service
+ * 
+ * Handles user authentication operations:
+ * - User registration (signup)
+ * - User login
+ * - Google OAuth
+ * - Logout
+ */
+
+import apiClient from '../networking/client';
+import { ENDPOINTS } from '../networking/endpoints';
+import type {
+  AuthResponse,
+  GoogleRegisterRequest,
+  LoginRequest,
+  SignUpRequest
+} from '../networking/types';
 import { clearAuthData } from '../utils/tokenStorage';
 import { clearUserCache } from '../utils/userCache';
 
+<<<<<<< HEAD
 // Platform-specific API URL configuration
 // Android Emulator: Use 10.0.2.2 to access host machine's localhost
 // iOS Simulator/Web: Use localhost
@@ -172,6 +189,45 @@ export const registerUser = async (userData: RegisterUserData): Promise<Register
             throw new Error('An unexpected error occurred: ' + error.message);
         }
     }
+=======
+/* ======================================================
+   SIGNUP
+====================================================== */
+
+export const registerUser = async (
+  userData: SignUpRequest
+): Promise<AuthResponse> => {
+  console.log('[AUTH] 📝 Signing up:', userData.email);
+
+  try {
+    const response = await apiClient.post<AuthResponse>(
+      ENDPOINTS.AUTH.SIGNUP,
+      {
+        email: userData.email,
+        password: userData.password,
+        firstName: userData.firstName,
+        lastName: userData.lastName || userData.firstName, // Fallback to firstName
+        role: userData.role,
+      }
+    );
+
+    // Backend must return token + userId
+    if (!response.data?.token) {
+      throw new Error('Signup failed: no token returned');
+    }
+
+    console.log('[AUTH] ✅ Signup success');
+    return response.data;
+
+  } catch (error: any) {
+    console.error('[AUTH] ❌ Registration failed:', error);
+
+    // Extract actual error message from backend
+    const errorMessage =
+      error.response?.data?.message || error.message || 'Registration failed';
+    throw new Error(errorMessage);
+  }
+>>>>>>> ddf968e (fixing last rebase)
 };
 
 /**
@@ -181,6 +237,7 @@ export const registerUser = async (userData: RegisterUserData): Promise<Register
 export const loginUser = async (email: string, password: string) => {
     console.log('[AUTH] 🔑 loginUser called for:', email);
 
+<<<<<<< HEAD
     try {
         const response = await apiClient.post('/users/auth/login', {
             email,
@@ -195,12 +252,28 @@ export const loginUser = async (email: string, password: string) => {
         };
     } catch (error: any) {
         console.error('[AUTH] ❌ Login error:', error);
+=======
+export const loginUser = async (
+  email: string,
+  password: string
+): Promise<AuthResponse> => {
+  console.log('[AUTH] 🔑 Logging in:', email);
+
+  const response = await apiClient.post<AuthResponse>(
+    ENDPOINTS.AUTH.LOGIN,
+    {
+      email,
+      password,
+    }
+  );
+>>>>>>> ddf968e (fixing last rebase)
 
         if (error.response) {
             // Server responded with error
             const status = error.response.status;
             const message = error.response.data?.message;
 
+<<<<<<< HEAD
             if (status === 401 || status === 403) {
                 // Invalid credentials
                 throw new Error(message || 'Invalid email or password');
@@ -235,10 +308,84 @@ export const logoutUser = async () => {
         console.error('[AUTH] ❌ Logout error:', error);
         throw error;
     }
+=======
+  console.log('[AUTH] ✅ Login success');
+  return response.data;
 };
 
+/* ======================================================
+   GOOGLE AUTH
+====================================================== */
+
+export const authenticateWithGoogle = async (
+  idToken: string
+): Promise<AuthResponse> => {
+  console.log('[AUTH] 🔐 Authenticating with Google');
+
+  const response = await apiClient.post<AuthResponse>(
+    ENDPOINTS.AUTH.GOOGLE_AUTH,
+    { idToken }
+  );
+
+  // Note: New users will have needsRoleSelection=true WITHOUT a token
+  // Existing users will have token + userRole
+  // Both are valid responses, so we don't check for token here
+
+  console.log('[AUTH] ✅ Google auth response received');
+  return response.data;
+};
+
+/* ======================================================
+   GOOGLE REGISTER (with role selection)
+====================================================== */
+
+export const registerWithGoogle = async (
+  userData: GoogleRegisterRequest
+): Promise<AuthResponse> => {
+  console.log('[AUTH] 📝 Registering with Google:', userData.email);
+
+  const response = await apiClient.post<AuthResponse>(
+    ENDPOINTS.AUTH.GOOGLE_REGISTER,
+    userData
+  );
+
+  if (!response.data?.token) {
+    throw new Error('Google registration failed: no token returned');
+  }
+
+  console.log('[AUTH] ✅ Google registration success');
+  return response.data;
+};
+
+/* ======================================================
+   LOGOUT
+====================================================== */
+
+export const logoutUser = async (): Promise<void> => {
+  await clearAuthData();
+  await clearUserCache();
+  console.log('[AUTH] 👋 Logged out');
+>>>>>>> ddf968e (fixing last rebase)
+};
+
+/* ======================================================
+   EXPORTS
+====================================================== */
+
 export default {
+<<<<<<< HEAD
     registerUser,
     loginUser,
     logoutUser,
+=======
+  registerUser,
+  loginUser,
+  authenticateWithGoogle,
+  registerWithGoogle,
+  logoutUser,
+>>>>>>> ddf968e (fixing last rebase)
 };
+
+// Export types for convenience
+export type { AuthResponse, GoogleRegisterRequest, LoginRequest, SignUpRequest };
+
