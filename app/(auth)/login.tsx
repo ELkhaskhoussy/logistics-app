@@ -13,14 +13,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-<<<<<<< HEAD
 import { loginUser } from '../services/auth';
 import { saveAuthData } from '../utils/tokenStorage';
-=======
-import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { useAuth } from '../../scripts/context/AuthContext';
-import { authenticateWithGoogle, loginUser } from '../services/auth';
->>>>>>> ddf968e (fixing last rebase)
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -29,20 +23,15 @@ export default function LoginScreen() {
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
-<<<<<<< HEAD
         console.log('🔵 [LOGIN] handleLogin called');
 
         // Validation
-=======
-
->>>>>>> ddf968e (fixing last rebase)
         if (!email || !password) {
             Alert.alert('Error', 'Please enter email and password');
             return;
         }
 
         setLoading(true);
-<<<<<<< HEAD
         try {
             const response = await loginUser(email, password);
 
@@ -54,29 +43,6 @@ export default function LoginScreen() {
             );
 
             console.log(' [LOGIN] Login successful, navigating to:', response.userRole);
-=======
-
-        try {
-            const response = await loginUser(email, password);
-
-            // Save auth data in AuthContext
-            login(response);
-
-            if (response.userRole === 'SENDER') {
-                router.replace('/search');
-            }
-
-            if (response.userRole === 'TRANSPORTER') {
-                router.replace('/dashboard');
-            }
-
-        } catch (error: any) {
-            Alert.alert('Login Failed', error.message || 'Invalid credentials');
-        } finally {
-            setLoading(false);
-        }
-    };
->>>>>>> ddf968e (fixing last rebase)
 
             // Role-based navigation
             if (response.userRole === 'SENDER') {
@@ -97,92 +63,14 @@ export default function LoginScreen() {
 
     const handleSignUp = () => {
         router.push('/(role-selection)' as any);
-
     };
 
-<<<<<<< HEAD
-    const handleGoogleSignIn = () => {
-        console.log('Google Sign In pressed');
+    const handleGoogleSignIn = async () => {
+        Alert.alert(
+            'Coming Soon',
+            'Google Sign In is temporarily disabled. Please use email/password login or sign up.'
+        );
     };
-=======
-    const handleGoogleLogin = async () => {
-        try {
-            console.log('[LOGIN] 🔐 Starting Google login...');
-
-            const result = await promptAsync();
-            console.log('[LOGIN] 🔐 Prompt result:', result?.type);
-            console.log('[LOGIN] 🔐 Full result:', result);
-
-            if (result?.type !== "success") {
-                console.log('[LOGIN] ⚠️ Google login cancelled or failed');
-                return;
-            }
-
-            const idToken = result.params?.id_token;
-            console.log('[LOGIN] 🔑 ID Token exists:', !!idToken);
-
-            if (!idToken) {
-                Alert.alert("Google login failed", "No ID token received");
-                return;
-            }
-
-            console.log('[LOGIN] 📞 Calling backend /users/auth/google...');
-
-            // Use authenticateWithGoogle service function
-            try {
-                const data = await authenticateWithGoogle(idToken);
-                console.log('[LOGIN] ✅ Backend response:', data);
-
-                // Check if user needs to select role (new user)
-                if (data.needsRoleSelection) {
-                    console.log('[LOGIN] 👤 New user - redirecting to role selection');
-
-                    localStorage.setItem(
-                        "googleUser",
-                        JSON.stringify({
-                            email: data.email,
-                            firstName: data.firstName,
-                            lastName: data.lastName,
-                            imageUrl: data.imageUrl,
-                        })
-                    );
-
-                    router.replace("/role-selection" as any);
-                    return;
-                }
-
-                // Existing user - login and redirect
-                if (data.token) {
-                    console.log('[LOGIN] ✅ Logging in existing user');
-                    login(data);
-
-                    if (data.userRole === "SENDER") {
-                        router.replace("/(sender)/search" as any);
-                    } else if (data.userRole === "TRANSPORTER") {
-                        router.replace("/(transporter)/dashboard" as any);
-                    }
-                }
-            } catch (backendError: any) {
-                console.error('[LOGIN] ❌ Backend API call failed:', backendError);
-                console.error('[LOGIN] ❌ Error response:', backendError.response?.data);
-                console.error('[LOGIN] ❌ Error status:', backendError.response?.status);
-                throw new Error(backendError.response?.data?.message || backendError.message || "Backend authentication failed");
-            }
-
-        } catch (err: any) {
-            console.error('[LOGIN] ❌ Google login error:', err);
-            console.error('[LOGIN] ❌ Error stack:', err.stack);
-            Alert.alert(
-                "Google Login Failed",
-                err.message || "An error occurred during Google login"
-            );
-        }
-    };
-
-
-
-
->>>>>>> ddf968e (fixing last rebase)
 
     return (
         <KeyboardAvoidingView
