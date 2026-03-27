@@ -2,6 +2,31 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Environment Switching
+
+The app supports two environments, each with its own env file:
+
+| File | Environment | API |
+|---|---|---|
+| `.env.dev` | Development | LAN IP `192.168.1.16:8080` |
+| `.env.production` | Production | Contabo `84.46.254.94:8080` |
+
+> **Note:** `.env` is auto-generated at startup and ignored by git. Do not edit it directly.
+
+### Launch commands
+
+```bash
+# Development (uses .env.local)
+npm run start:dev
+
+# Production (uses .env.production)
+npm run start:prod
+```
+
+Each command automatically copies the right env file to `.env` and starts Expo with a cleared cache.
+
+---
+
 ## Get started
 
 1. Install dependencies

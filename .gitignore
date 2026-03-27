@@ -30,8 +30,8 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# local env files (only ignore the auto-generated active copy)
+# .env.local and .env.production are tracked as source-of-truth
 
 # typescript
 *.tsbuildinfo
@@ -42,12 +42,9 @@ app-example
 /ios
 /android
 
-# Local environment variables
+# Local environment variables - only ignore the generated .env (active copy)
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.backup
 
 # Expo development files
 .expo-shared/
