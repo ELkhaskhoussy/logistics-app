@@ -17,7 +17,7 @@ export interface ApiConfig {
  */
 export const API_CONFIG: Record<Environment, ApiConfig> = {
     development: {
-        baseURL: 'http://192.168.1.16:8080',  // LAN IP for physical device testing
+         baseURL: 'http://localhost:8080' ,  // LAN IP for physical device testing
         timeout: 15000,
     },
     production: {

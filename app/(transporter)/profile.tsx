@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
+import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,17 +9,27 @@ import {
   Text,
   TouchableOpacity,
   View,
+  TextInput,
+  Image,
 } from "react-native";
 
 import { useAuth } from "../../scripts/context/AuthContext";
 import { getUserById } from "../services/user";
-import { fetchTransporterProfile } from "../services/trip";
+import {
+  fetchTransporterProfile,
+  updateTransporterProfile,
+} from "../services/trip";
+
+import * as ImagePicker from "expo-image-picker";
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
-  const { userId, role, logout,loading: authLoading } = useAuth();
+  const { userId, role, logout, loading: authLoading } = useAuth();
 
+  const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [userInfo, setUserInfo] = useState({
     firstName: "",
@@ -29,14 +39,22 @@ export default function TransporterProfileScreen() {
     bio: "",
     vehicleType: "",
     licensePlate: "",
+    imageUrl: "",
   });
 
-useEffect(() => {
-  if (!authLoading && userId) {
-    loadUserInfo();
-  }
-}, [authLoading, userId]);
+  const [formData, setFormData] = useState({
+    bio: "",
+    vehicleType: "",
+    licensePlate: "",
+  });
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!authLoading && userId) {
+        loadUserInfo();
+      }
+    }, [authLoading, userId])
+  );
 
   const loadUserInfo = async () => {
     if (!userId) {
@@ -50,24 +68,127 @@ useEffect(() => {
     }
 
     try {
+      // STEP 1: instant user load
       const userData = await getUserById(Number(userId));
-      const transporterProfile = await fetchTransporterProfile(Number(userId));
 
-      setUserInfo({
+      const baseData = {
         firstName: userData.firstName,
         lastName: userData.lastName,
         email: userData.email,
         role,
-        bio: transporterProfile?.bio || "Not set",
-        vehicleType: transporterProfile?.vehicleType || "Not set",
-        licensePlate: transporterProfile?.licensePlate || "Not set",
+        bio: "",
+        vehicleType: "",
+        licensePlate: "",
+        imageUrl: userData.imageUrl || "",
+      };
+
+      setUserInfo(baseData);
+
+      // prevent image override during upload
+      if (!isUploading) {
+        setImage(baseData.imageUrl);
+      }
+
+      setFormData({
+        bio: "",
+        vehicleType: "",
+        licensePlate: "",
       });
 
-    } catch (error) {
-      console.error("Profile load error:", error);
-      Alert.alert("Error", "Could not load profile");
-    } finally {
       setLoading(false);
+
+      // STEP 2: background fetch
+      fetchTransporterProfile(Number(userId))
+        .then((transporter) => {
+          if (!transporter) return;
+
+          const updated = {
+            ...baseData,
+            bio: transporter.bio || "",
+            vehicleType: transporter.vehicleType || "",
+            licensePlate: transporter.licensePlate || "",
+          };
+
+          setUserInfo(updated);
+          setFormData({
+            bio: updated.bio,
+            vehicleType: updated.vehicleType,
+            licensePlate: updated.licensePlate,
+          });
+        })
+        .catch(() => {
+          console.log("Transporter profile not found");
+        });
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Could not load profile");
+      setLoading(false);
+    }
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setImage(uri); // instant preview
+      uploadImage(uri);
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    try {
+      setIsUploading(true);
+
+      const formData = new FormData();
+
+      formData.append("file", {
+        uri,
+        name: "profile.jpg",
+        type: "image/jpeg",
+      } as any);
+
+      const response = await fetch(
+        `http://localhost:8080/users/${userId}/upload-profile-photo`,
+        {
+          method: "POST",
+          body: formData,
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      const photoUrl = await response.text();
+
+      setImage(photoUrl);
+
+      Alert.alert("Success", "Profile photo updated");
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateTransporterProfile(userId, formData);
+
+      Alert.alert("Success", "Profile updated");
+
+      setIsEditing(false);
+      loadUserInfo();
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Failed to update profile");
     }
   };
 
@@ -82,38 +203,84 @@ useEffect(() => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-
-      {/* Header */}
+      
       <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <Feather name="truck" size={48} color="#FFFFFF" />
-        </View>
+        <TouchableOpacity onPress={pickImage} disabled={isUploading}>
+          <View style={styles.avatarContainer}>
+            {image ? (
+              <Image source={{ uri: image }} style={styles.avatar} />
+            ) : (
+              <Feather name="truck" size={48} color="#FFFFFF" />
+            )}
+          </View>
+        </TouchableOpacity>
+
         <Text style={styles.title}>Transporter Profile</Text>
-        <Text style={styles.subtitle}>Manage your account</Text>
+        <Text style={styles.subtitle}>Tap image to change</Text>
       </View>
 
-      {/* Profile Info */}
       <View style={styles.card}>
-
         <InfoRow icon="user" label="First Name" value={userInfo.firstName} />
         <InfoRow icon="user" label="Last Name" value={userInfo.lastName} />
         <InfoRow icon="mail" label="Email" value={userInfo.email} />
         <InfoRow icon="briefcase" label="Role" value={userInfo.role} />
 
-        <InfoRow icon="info" label="Bio" value={userInfo.bio} />
-        <InfoRow icon="truck" label="Vehicle Type" value={userInfo.vehicleType} />
-        <InfoRow icon="hash" label="License Plate" value={userInfo.licensePlate} />
+        <EditableRow
+          label="Bio"
+          value={formData.bio}
+          isEditing={isEditing}
+          onChange={(text: string) =>
+            setFormData({ ...formData, bio: text })
+          }
+        />
 
+        <EditableRow
+          label="Vehicle Type"
+          value={formData.vehicleType}
+          isEditing={isEditing}
+          onChange={(text: string) =>
+            setFormData({ ...formData, vehicleType: text })
+          }
+        />
+
+        <EditableRow
+          label="License Plate"
+          value={formData.licensePlate}
+          isEditing={isEditing}
+          onChange={(text: string) =>
+            setFormData({ ...formData, licensePlate: text })
+          }
+        />
       </View>
 
-      {/* Logout */}
+      {!isEditing ? (
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => setIsEditing(true)}
+        >
+          <Text style={styles.buttonText}>Edit Profile</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.rowButtons}>
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Text style={styles.buttonText}>Save</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setIsEditing(false)}
+          >
+            <Text style={styles.buttonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <TouchableOpacity
         style={styles.logoutButton}
         onPress={() => {
           logout();
           router.replace("/(auth)/login" as any);
         }}
-        activeOpacity={0.8}
       >
         <Feather name="log-out" size={20} color="#FFFFFF" />
         <Text style={styles.logoutButtonText}>Log Out</Text>
@@ -122,6 +289,8 @@ useEffect(() => {
     </ScrollView>
   );
 }
+
+/* COMPONENTS */
 
 function InfoRow({ icon, label, value }: any) {
   return (
@@ -135,29 +304,33 @@ function InfoRow({ icon, label, value }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  centered: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  content: {
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#6B7280",
-  },
+function EditableRow({ label, value, isEditing, onChange }: any) {
+  return (
+    <View style={styles.infoRow}>
+      <View style={styles.infoContent}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        {isEditing ? (
+          <TextInput
+            value={value}
+            onChangeText={onChange}
+            style={styles.input}
+          />
+        ) : (
+          <Text style={styles.infoValue}>{value || "N/A"}</Text>
+        )}
+      </View>
+    </View>
+  );
+}
 
-  header: {
-    alignItems: "center",
-    marginBottom: 32,
-    marginTop: 20,
-  },
+/* STYLES */
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  centered: { justifyContent: "center", alignItems: "center" },
+  content: { padding: 20 },
+
+  header: { alignItems: "center", marginBottom: 32, marginTop: 20 },
 
   avatarContainer: {
     width: 96,
@@ -167,67 +340,86 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
+    overflow: "hidden",
   },
 
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 4,
+  avatar: {
+    width: "100%",
+    height: "100%",
   },
 
-  subtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
+  title: { fontSize: 24, fontWeight: "bold", color: "#111827" },
+  subtitle: { fontSize: 14, color: "#6B7280" },
 
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 20,
-    marginBottom: 24,
-    elevation: 2,
+    marginBottom: 20,
   },
 
   infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
 
-  infoContent: {
-    marginLeft: 12,
+  infoContent: { marginLeft: 12 },
+  infoLabel: { fontSize: 12, color: "#6B7280" },
+  infoValue: { fontSize: 16, color: "#111827", fontWeight: "500" },
+
+  input: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 5,
+  },
+
+  editButton: {
+    backgroundColor: "#2563EB",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  rowButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  saveButton: {
     flex: 1,
+    backgroundColor: "#16A34A",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
   },
 
-  infoLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 2,
+  cancelButton: {
+    flex: 1,
+    backgroundColor: "#6B7280",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
   },
 
-  infoValue: {
-    fontSize: 16,
-    color: "#111827",
-    fontWeight: "500",
-  },
+  buttonText: { color: "#FFFFFF", fontWeight: "600" },
 
   logoutButton: {
     backgroundColor: "#DC2626",
     borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: "row",
+    padding: 16,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 32,
   },
 
-  logoutButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
+  logoutButtonText: { color: "#FFFFFF", fontWeight: "600" },
+
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#6B7280",
   },
 });

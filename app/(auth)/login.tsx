@@ -1,11 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
-<<<<<<< HEAD
-=======
- import { useAuth } from '../../scripts/context/AuthContext';
+import { useAuth } from '../../scripts/context/AuthContext';
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { apiClient } from '../services/auth';
->>>>>>> 234c6a2 (Continue with google+updated profiles)
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -26,122 +22,95 @@ export default function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
-=======
     const { promptAsync } = useGoogleAuth();
     const { login } = useAuth();
->>>>>>> 234c6a2 (Continue with google+updated profiles)
 
-const handleLogin = async () => {
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter email and password');
+            return;
+        }
 
-  if (!email || !password) {
-    Alert.alert('Error', 'Please enter email and password');
-    return;
-  }
+        setLoading(true);
 
-  setLoading(true);
+        try {
+            const response = await loginUser(email, password);
 
-  try {
-    const response = await loginUser(email, password);
+            login(response);
 
-    // Save auth data in AuthContext
-    login(response);
+            if (response.userRole === 'SENDER') {
+                router.replace('/search');
+            }
 
-    if (response.userRole === 'SENDER') {
-      router.replace('/search');
-    }
+            if (response.userRole === 'TRANSPORTER') {
+                router.replace('/dashboard');
+            }
 
-    if (response.userRole === 'TRANSPORTER') {
-      router.replace('/dashboard');
-    }
-
-  } catch (error: any) {
-    Alert.alert('Login Failed', error.message || 'Invalid credentials');
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-    const handleSignUp = () => {
-        router.push('/(role-selection)' as any);
+        } catch (error: any) {
+            Alert.alert('Login Failed', error.message || 'Invalid credentials');
+        } finally {
+            setLoading(false);
+        }
     };
 
-<<<<<<< HEAD
-    const handleGoogleSignIn = async () => {
-        Alert.alert(
-            'Coming Soon',
-            'Google Sign In is temporarily disabled. Please use email/password login or sign up.'
-        );
+    const handleGoogleLogin = async () => {
+        try {
+            const result = await promptAsync();
+            if (result?.type !== "success") return;
+
+            const idToken = result.params?.id_token;
+
+            if (!idToken) {
+                Alert.alert("Google login failed");
+                return;
+            }
+
+            const response = await fetch(
+                "http://localhost:8080/users/auth/google",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ idToken }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.needsRoleSelection) {
+                localStorage.setItem(
+                    "googleUser",
+                    JSON.stringify({
+                        email: data.email,
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        imageUrl: data.imageUrl,
+                    })
+                );
+                router.replace("/(role-selection)");
+                return;
+            }
+
+            if (data.token) {
+                login(data);
+
+                if (data.userRole === "SENDER") router.replace("/search");
+                if (data.userRole === "TRANSPORTER") router.replace("/dashboard");
+            }
+
+        } catch (err) {
+            console.error("Google login error:", err);
+        }
     };
-=======
-  const handleGoogleLogin = async () => {
-  try {
-
-    const result = await promptAsync();
-
-    if (result?.type !== "success") return;
-
-    const idToken = result.params?.id_token;
-
-    if (!idToken) {
-      Alert.alert("Google login failed");
-      return;
-    }
-
-    const response = await apiClient.post("/users/auth/google", {
-      idToken,
-    });
-
-    const data = response.data;
-
-    console.log("BACKEND RESPONSE:", data);
-
-    if (data.needsRoleSelection) {
-
-      localStorage.setItem(
-        "googleUser",
-        JSON.stringify({
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          imageUrl: data.imageUrl,
-        })
-      );
-
-      router.replace("/role-selection");
-      return;
-    }
-
-    if (data.token) {
-
-      login(data);
-
-      if (data.userRole === "SENDER") router.replace("/search");
-      if (data.userRole === "TRANSPORTER") router.replace("/dashboard");
-    }
-
-  } catch (err) {
-    console.error("Google login error:", err);
-  }
-};
-
-
-
-
->>>>>>> 234c6a2 (Continue with google+updated profiles)
 
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-            >
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                 <View style={styles.card}>
-                    {/* Logo/Icon Section */}
+
+                    {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.logoContainer}>
                             <Feather name="package" size={32} color="#FFFFFF" />
@@ -150,10 +119,11 @@ const handleLogin = async () => {
                         <Text style={styles.description}>Sign in to your account</Text>
                     </View>
 
-                    {/* Form Section */}
+                    {/* Form */}
                     <View style={styles.content}>
                         <View style={styles.form}>
-                            {/* Email Input */}
+
+                            {/* Email */}
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>Email</Text>
                                 <TextInput
@@ -164,11 +134,10 @@ const handleLogin = async () => {
                                     onChangeText={setEmail}
                                     keyboardType="email-address"
                                     autoCapitalize="none"
-                                    autoComplete="email"
                                 />
                             </View>
 
-                            {/* Password Input */}
+                            {/* Password */}
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>Password</Text>
                                 <TextInput
@@ -178,12 +147,10 @@ const handleLogin = async () => {
                                     value={password}
                                     onChangeText={setPassword}
                                     secureTextEntry
-                                    autoCapitalize="none"
-                                    autoComplete="password"
                                 />
                             </View>
 
-                            {/* Sign In Button */}
+                            {/* Sign In */}
                             <TouchableOpacity
                                 style={[styles.signInButton, loading && styles.signInButtonDisabled]}
                                 onPress={handleLogin}
@@ -196,6 +163,17 @@ const handleLogin = async () => {
                                     <Text style={styles.signInButtonText}>Sign In</Text>
                                 )}
                             </TouchableOpacity>
+
+                            {/* 🔥 FORGOT PASSWORD (NEW POSITION) */}
+                            <TouchableOpacity
+                                onPress={() => router.push('/forgot-password')}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.forgotPassword}>
+                                    Forgot password?
+                                </Text>
+                            </TouchableOpacity>
+
                         </View>
 
                         {/* Divider */}
@@ -205,7 +183,7 @@ const handleLogin = async () => {
                             <View style={styles.dividerLine} />
                         </View>
 
-                        {/* Google Sign In Button */}
+                        {/* Google */}
                         <TouchableOpacity
                             style={styles.googleButton}
                             onPress={handleGoogleLogin}
@@ -215,7 +193,7 @@ const handleLogin = async () => {
                             <Text style={styles.googleButtonText}>Sign in with Google</Text>
                         </TouchableOpacity>
 
-                        {/* Sign Up Link */}
+                        {/* Sign Up */}
                         <View style={styles.signUpContainer}>
                             <Link href="/(role-selection)" asChild>
                                 <TouchableOpacity activeOpacity={0.7}>
@@ -225,6 +203,7 @@ const handleLogin = async () => {
                                 </TouchableOpacity>
                             </Link>
                         </View>
+
                     </View>
                 </View>
             </ScrollView>
@@ -233,15 +212,9 @@ const handleLogin = async () => {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F9FAFB',
-    },
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        padding: 16,
-    },
+    container: { flex: 1, backgroundColor: '#F9FAFB' },
+    scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 16 },
+
     card: {
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
@@ -254,12 +227,14 @@ const styles = StyleSheet.create({
         width: '100%',
         alignSelf: 'center',
     },
+
     header: {
         paddingTop: 24,
         paddingHorizontal: 24,
         paddingBottom: 8,
         alignItems: 'center',
     },
+
     logoContainer: {
         width: 64,
         height: 64,
@@ -269,6 +244,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: 16,
     },
+
     title: {
         fontSize: 24,
         fontWeight: 'bold',
@@ -276,26 +252,26 @@ const styles = StyleSheet.create({
         marginBottom: 8,
         textAlign: 'center',
     },
+
     description: {
         fontSize: 14,
         color: '#6B7280',
         textAlign: 'center',
     },
-    content: {
-        padding: 24,
-    },
-    form: {
-        gap: 16,
-    },
-    inputGroup: {
-        marginBottom: 16,
-    },
+
+    content: { padding: 24 },
+
+    form: { gap: 16 },
+
+    inputGroup: { marginBottom: 16 },
+
     label: {
         fontSize: 14,
         fontWeight: '500',
         color: '#374151',
         marginBottom: 8,
     },
+
     input: {
         height: 48,
         borderWidth: 1,
@@ -306,6 +282,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         color: '#111827',
     },
+
     signInButton: {
         backgroundColor: '#2563EB',
         height: 48,
@@ -314,31 +291,45 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: 8,
     },
+
     signInButtonText: {
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
     },
+
     signInButtonDisabled: {
         backgroundColor: '#9CA3AF',
         opacity: 0.7,
     },
+
+    forgotPassword: {
+        textAlign: 'center',
+        marginTop: 12,
+        color: '#2563EB',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
         marginVertical: 24,
     },
+
     dividerLine: {
         flex: 1,
         height: 1,
         backgroundColor: '#E5E7EB',
     },
+
     dividerText: {
         paddingHorizontal: 8,
         fontSize: 12,
         color: '#6B7280',
         textTransform: 'uppercase',
     },
+
     googleButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -347,24 +338,26 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D1D5DB',
         borderRadius: 8,
-        backgroundColor: 'transparent',
     },
-    googleIcon: {
-        marginRight: 8,
-    },
+
+    googleIcon: { marginRight: 8 },
+
     googleButtonText: {
         color: '#374151',
         fontSize: 16,
         fontWeight: '500',
     },
+
     signUpContainer: {
         marginTop: 16,
         alignItems: 'center',
     },
+
     signUpText: {
         fontSize: 14,
         color: '#6B7280',
     },
+
     signUpLink: {
         color: '#2563EB',
         fontWeight: '500',
