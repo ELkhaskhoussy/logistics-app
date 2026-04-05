@@ -37,11 +37,8 @@ export const createTransporterProfile = async (
     data: CreateTransporterProfileRequest
 ): Promise<TransporterProfile> => {
     const response = await apiClient.post<TransporterProfile>(
-        ENDPOINTS.CATALOG.CREATE_TRANSPORTER_PROFILE,
-        {
-            userId,
-            ...data,
-        }
+        `${ENDPOINTS.CATALOG.CREATE_TRANSPORTER_PROFILE}?userId=${userId}`,
+        data   // body contains displayName, bio, vehicleType, etc. (no userId)
     );
     return response.data;
 };

@@ -18,6 +18,7 @@ import { getUserById } from "../services/user";
 import {
   fetchTransporterProfile,
   updateTransporterProfile,
+  createTransporterProfile,
 } from "../services/trip";
 
 import * as ImagePicker from "expo-image-picker";
@@ -63,6 +64,7 @@ export default function TransporterProfileScreen() {
     }
 
     if (role !== "TRANSPORTER") {
+      setLoading(false);
       router.replace("/(sender)/profile" as any);
       return;
     }
@@ -178,11 +180,25 @@ export default function TransporterProfileScreen() {
   };
 
   const handleSave = async () => {
+    const numericUserId = Number(userId);
+    if (!numericUserId) return;
+
     try {
-      await updateTransporterProfile(userId, formData);
+      try {
+        // Try update first (profile already exists)
+        await updateTransporterProfile(numericUserId, formData);
+      } catch {
+        // Profile doesn't exist yet — create it
+        await createTransporterProfile(numericUserId, {
+          displayName: `${userInfo.firstName} ${userInfo.lastName}`.trim(),
+          bio: formData.bio,
+          vehicleType: formData.vehicleType,
+          licensePlate: formData.licensePlate,
+          pricingPerKg: 0,
+        });
+      }
 
       Alert.alert("Success", "Profile updated");
-
       setIsEditing(false);
       loadUserInfo();
 

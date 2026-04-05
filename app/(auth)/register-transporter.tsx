@@ -14,10 +14,11 @@ import {
   View
 } from 'react-native';
 import { registerUser } from '../services/auth';
-import { saveAuthData } from '../utils/tokenStorage';
+import { useAuth } from '../../scripts/context/AuthContext';
 
 export default function RegisterTransporterScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -63,12 +64,8 @@ export default function RegisterTransporterScreen() {
 
       console.log('✅ [TRANSPORTER-REG] Registration successful:', response);
 
-      // Save auth data (auto-login)
-      await saveAuthData(
-        response.token,
-        response.userRole,
-        response.userId
-      );
+      // Update AuthContext state (and save to localStorage)
+      login(response);
 
       console.log('✅ [TRANSPORTER-REG] Auto-login complete');
 

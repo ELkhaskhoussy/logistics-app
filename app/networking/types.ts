@@ -11,7 +11,7 @@ export interface SignUpRequest {
     lastName?: string;
     email: string;
     password: string;
-    phone:string;
+    phone?: string;
     role: 'SENDER' | 'TRANSPORTER';
 }
 
@@ -81,6 +81,8 @@ export interface CreateTransporterProfileRequest {
     displayName: string;
     bio?: string;
     pricingPerKg?: number;
+    vehicleType?: string;
+    licensePlate?: string;
 }
 
 export interface UpdateTransporterProfileRequest {

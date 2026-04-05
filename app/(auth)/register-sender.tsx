@@ -14,10 +14,11 @@ import {
     View
 } from 'react-native';
 import { registerUser } from '../services/auth';
-import { saveAuthData } from '../utils/tokenStorage';
+import { useAuth } from '../../scripts/context/AuthContext';
 
 export default function RegisterSenderScreen() {
     const router = useRouter();
+    const { login } = useAuth();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -74,11 +75,8 @@ export default function RegisterSenderScreen() {
                 phone: formData.phone,
             });
 
-            await saveAuthData(
-                response.token,
-                response.userRole,
-                response.userId
-            );
+            // Update AuthContext state (and save to localStorage)
+            login(response);
 
             router.replace('/(sender)/search' as any);
 
