@@ -24,7 +24,7 @@ const ENV_MODE: 'DEV' | 'PROD' = 'DEV'; //  Change to 'PROD' before deployment!
  * Backend URLs for different environments
  */
 const BACKEND_URLS = {
-    DEV: 'http://192.168.1.16:8080',      // Your computer's LAN IP for local testing
+    DEV: 'http://localhost:8080',     // Your computer's LAN IP for local testing
     PROD: 'http://84.46.254.94:8080',     // Live production server
 };
 
