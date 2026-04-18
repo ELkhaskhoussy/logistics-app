@@ -69,11 +69,7 @@ export const uploadTransporterPhoto = async (
     const response = await apiClient.post<{ photoUrl: string }>(
         ENDPOINTS.CATALOG.UPLOAD_TRANSPORTER_PHOTO(userId),
         formData,
-        {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        }
+       
     );
     return response.data;
 };

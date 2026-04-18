@@ -60,7 +60,7 @@ export default function ResetPasswordScreen() {
 
             Alert.alert("Success", "Password reset successfully");
 
-            // 👉 Redirect to login
+            //  Redirect to login
             router.replace("/(auth)/login");
 
         } catch (error: any) {

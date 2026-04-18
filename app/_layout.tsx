@@ -1,11 +1,11 @@
 import Toast from "react-native-toast-message";
 import { Stack } from "expo-router";
-import { AuthProvider } from "../scripts/context/AuthContext"; // ✅ ADD THIS
+import { AuthProvider } from "../scripts/context/AuthContext"; 
 import "./global.css";
 
 export default function RootLayout() {
   return (
-    <AuthProvider> {/* ✅ WRAP EVERYTHING */}
+    <AuthProvider> {/*  WRAP EVERYTHING */}
       <>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />

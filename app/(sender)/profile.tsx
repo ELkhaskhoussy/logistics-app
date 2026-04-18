@@ -24,7 +24,7 @@ export default function SenderProfileScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // ✅ NEW
+  const [isUploading, setIsUploading] = useState(false); // 
 
   const [userInfo, setUserInfo] = useState({
     firstName: '',
@@ -66,7 +66,6 @@ export default function SenderProfileScreen() {
       setUserInfo(data);
       setPhone(data.phone);
 
-      // ✅ FIX: prevent flicker
       if (!isUploading) {
         setImage(data.imageUrl);
       }
@@ -82,52 +81,50 @@ export default function SenderProfileScreen() {
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
       quality: 0.7,
-    });
 
+    });
+    console.log("Picked image:", result);
     if (!result.canceled) {
       const uri = result.assets[0].uri;
       setImage(uri); // instant preview
       uploadImage(uri);
     }
   };
+const uploadImage = async (uri: string) => {
+  try {
+    setIsUploading(true);
 
-  const uploadImage = async (uri: string) => {
-    try {
-      setIsUploading(true); // ✅ lock
+    const formData = new FormData();
 
-      const formData = new FormData();
+    
+    const response = await fetch(uri);
+    const blob = await response.blob();
 
-      formData.append('file', {
-        uri,
-        name: 'profile.jpg',
-        type: 'image/jpeg',
-      } as any);
+    formData.append("file", blob, "profile.jpg");
 
-      const response = await fetch(
-        `http://localhost:8080/users/${userId}/upload-profile-photo`,
-        {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+    const uploadResponse = await fetch(
+      `http://localhost:8080/users/${userId}/upload-profile-photo`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
-      const photoUrl = await response.text();
+    const photoUrl = await uploadResponse.text();
 
-      setImage(photoUrl);
+    setImage(photoUrl);
 
-      Alert.alert('Success', 'Profile photo updated');
+    Alert.alert("Success", "Profile photo updated");
 
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Upload failed');
-    } finally {
-      setIsUploading(false); // ✅ unlock
-    }
-  };
+  } catch (error) {
+    console.error(error);
+    Alert.alert("Error", "Upload failed");
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   const handleSave = async () => {
     try {

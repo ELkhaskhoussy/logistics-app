@@ -39,20 +39,7 @@ export default function SenderLayout() {
                 options={{
                     href: null,
                 }}
-            />
-            {/* Hide transporter-profile from tabs */}
-            <Tabs.Screen
-                name="transporter-profile"
-                options={{
-                    href: null,
-                }}
-            />
-            <Tabs.Screen
-                name="transporter"
-                options={{
-                    href: null,
-                }}
-            />
+            />  
         </Tabs>
     );
 }
