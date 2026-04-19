@@ -137,48 +137,57 @@ export default function TransporterProfileScreen() {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      setImage(uri); // instant preview
+      setImage(uri);
       uploadImage(uri);
     }
   };
 
   const uploadImage = async (uri: string) => {
-    try {
-      setIsUploading(true);
+  try {
+    setIsUploading(true);
 
-      const formData = new FormData();
+    console.log("IMAGE URI 👉", uri);
 
+    const formData = new FormData();
+
+    if (uri.startsWith("blob:")) {
+      // FIX FOR WEB
+      const responseBlob = await fetch(uri);
+      const blob = await responseBlob.blob();
+
+      formData.append("file", blob, "profile.jpg");
+    } else {
+      //  MOBILE 
       formData.append("file", {
-        uri,
+        uri: uri,
         name: "profile.jpg",
         type: "image/jpeg",
       } as any);
-
-      const response = await fetch(
-        `http://localhost:8080/users/${userId}/upload-profile-photo`,
-        {
-          method: "POST",
-          body: formData,
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      const photoUrl = await response.text();
-
-      setImage(photoUrl);
-
-      Alert.alert("Success", "Profile photo updated");
-
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Upload failed");
-    } finally {
-      setIsUploading(false);
     }
-  };
 
+    const response = await fetch(
+      `http://localhost:8080/users/${userId}/upload-profile-photo`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const photoUrl = await response.text();
+
+    console.log("PHOTO URL 👉", photoUrl);
+
+    setImage(photoUrl);
+
+    Alert.alert("Success", "Profile photo updated");
+
+  } catch (error) {
+    console.error(error);
+    Alert.alert("Error", "Upload failed");
+  } finally {
+    setIsUploading(false);
+  }
+};
   const handleSave = async () => {
     const numericUserId = Number(userId);
     if (!numericUserId) return;
@@ -306,7 +315,7 @@ export default function TransporterProfileScreen() {
   );
 }
 
-/* COMPONENTS */
+
 
 function InfoRow({ icon, label, value }: any) {
   return (
@@ -339,7 +348,7 @@ function EditableRow({ label, value, isEditing, onChange }: any) {
   );
 }
 
-/* STYLES */
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },

@@ -43,7 +43,7 @@ export default function ForgotPasswordScreen() {
 
             Alert.alert("Success", "Verification code sent to your email");
 
-            // 👉 next step (we'll build later)
+          
             router.push({
                 pathname: "/verify-code",
                 params: { email }

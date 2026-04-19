@@ -1,11 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
 import Toast from "react-native-toast-message";
+import { useRouter } from "expo-router";
 
 import {
   Platform,
@@ -17,13 +16,34 @@ import {
   View,
 } from "react-native";
 
+import { apiClient } from "../services/backService";
+
 /**
- *  Formats a JS Date into yyyy-MM-dd WITHOUT timezone shifting
+ * Format date yyyy-MM-dd
  */
 const formatLocalDate = (d: Date) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeCity = (s?: string) => {
+  const value = (s ?? "").trim();
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+};
+
+const addMonths = (yyyyMMdd: string, monthsToAdd: number) => {
+  const [y, m, d] = yyyyMMdd.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+
+  date.setMonth(date.getMonth() + monthsToAdd);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 };
 
@@ -36,70 +56,75 @@ export default function SearchScreen() {
     date: "",
   });
 
-  const dateInputRef = useRef<TextInput>(null);
+  const [trips, setTrips] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  //  Errors (to highlight inputs)
   const [collectionError, setCollectionError] = useState(false);
   const [deliveryError, setDeliveryError] = useState(false);
   const [dateError, setDateError] = useState(false);
 
   const todayExample = formatLocalDate(new Date());
 
-  const handleSearch = () => {
-    console.log("Search submitted:", searchData);
-
-    //  Reset errors first
+  const handleSearch = async () => {
     setCollectionError(false);
     setDeliveryError(false);
     setDateError(false);
 
-    //  STEP 1: collection city required
     if (!searchData.collectionCity.trim()) {
       setCollectionError(true);
-      Toast.show({
-        type: "error",
-        text1: "Veuillez saisir la ville de collecte",
-        position: "bottom",
-        visibilityTime: 2500,
-      });
+      Toast.show({ type: "error", text1: "Collection city required" });
       return;
     }
 
-    //  STEP 2: delivery city required
     if (!searchData.deliveryCity.trim()) {
       setDeliveryError(true);
-      Toast.show({
-        type: "error",
-        text1: "Veuillez saisir la ville de livraison",
-        position: "bottom",
-        visibilityTime: 2500,
-      });
+      Toast.show({ type: "error", text1: "Delivery city required" });
       return;
     }
 
-    //  STEP 3: date required
     if (!searchData.date.trim()) {
       setDateError(true);
-      Toast.show({
-        type: "error",
-        text1: "Veuillez saisir la date",
-        position: "bottom",
-        visibilityTime: 2500,
-      });
+      Toast.show({ type: "error", text1: "Date required" });
       return;
     }
 
-    //  all good -> navigate
-    router.push({
-      pathname: "/(sender)/results",
-      params: {
-        collectionCity: searchData.collectionCity,
-        deliveryCity: searchData.deliveryCity,
-        date: searchData.date,
-      },
-    } as any);
+    try {
+      setLoading(true);
+
+      const departureCity = normalizeCity(searchData.collectionCity);
+      const arrivalCity = normalizeCity(searchData.deliveryCity);
+      const selectedDate = searchData.date;
+
+      const params = new URLSearchParams();
+
+      if (departureCity) params.append("departureCity", departureCity);
+      if (arrivalCity) params.append("arrivalCity", arrivalCity);
+      if (selectedDate) {
+        params.append("dateFrom", selectedDate);
+        params.append("dateTo", addMonths(selectedDate, 3));
+      }
+
+      const url = `/catalog/trips/search?${params.toString()}`;
+      console.log("Final URL =", url);
+
+      const response = await apiClient.get(url);
+      const data = response.data;
+
+      setTrips(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDateTime = (value: any) => {
+    if (!value) return "—";
+    return String(value).replace("T", " ").slice(0, 10);
   };
 
   return (
@@ -113,7 +138,7 @@ export default function SearchScreen() {
       </View>
 
       <ScrollView style={styles.main}>
-        {/* Title Section */}
+        {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>Find Your Transporter</Text>
           <Text style={styles.subtitle}>
@@ -128,99 +153,69 @@ export default function SearchScreen() {
           </View>
 
           <View style={styles.cardContent}>
-            {/* Collection City */}
+            {/* Collection */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, collectionError && styles.labelError]}>
-                Collection City
-              </Text>
+              <Text style={styles.label}>Collection City</Text>
               <View style={styles.inputWrapper}>
-                <Feather
-                  name="map-pin"
-                  size={16}
-                  color="#6B7280"
-                  style={styles.inputIcon}
-                />
+                <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, collectionError && styles.inputError]}
+                  style={styles.input}
                   placeholder="e.g., Tunis"
                   placeholderTextColor="#9CA3AF"
                   value={searchData.collectionCity}
-                  onChangeText={(text) => {
-                    setCollectionError(false);
-                    setSearchData({ ...searchData, collectionCity: text });
-                  }}
+                  onChangeText={(text) =>
+                    setSearchData({ ...searchData, collectionCity: text })
+                  }
                 />
               </View>
             </View>
 
-            {/* Delivery City */}
+            {/* Delivery */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, deliveryError && styles.labelError]}>
-                Delivery City
-              </Text>
+              <Text style={styles.label}>Delivery City</Text>
               <View style={styles.inputWrapper}>
-                <Feather
-                  name="map-pin"
-                  size={16}
-                  color="#6B7280"
-                  style={styles.inputIcon}
-                />
+                <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
-                  style={[styles.input, deliveryError && styles.inputError]}
+                  style={styles.input}
                   placeholder="e.g., Paris"
                   placeholderTextColor="#9CA3AF"
                   value={searchData.deliveryCity}
-                  onChangeText={(text) => {
-                    setDeliveryError(false);
-                    setSearchData({ ...searchData, deliveryCity: text });
-                  }}
+                  onChangeText={(text) =>
+                    setSearchData({ ...searchData, deliveryCity: text })
+                  }
                 />
               </View>
             </View>
 
-            {/* Preferred Date */}
+            {/* Date */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, dateError && styles.labelError]}>
-                Preferred Date
-              </Text>
+              <Text style={styles.label}>Preferred Date</Text>
 
               {Platform.OS === "web" ? (
                 <View style={styles.webDateWrapper}>
-                  <Feather
-                    name="calendar"
-                    size={16}
-                    color="#6B7280"
-                    style={styles.webCalendarIcon}
-                  />
+                  <Feather name="calendar" size={16} color="#6B7280" style={styles.webCalendarIcon} />
 
                   <DatePicker
                     selected={selectedDate}
                     onChange={(date: Date | null) => {
                       if (!date) return;
 
-                      setDateError(false);
-
                       setSelectedDate(date);
-                      const formattedDate = formatLocalDate(date);
-                      setSearchData({ ...searchData, date: formattedDate });
+                      setSearchData({
+                        ...searchData,
+                        date: formatLocalDate(date),
+                      });
                     }}
                     dateFormat="yyyy-MM-dd"
                     placeholderText={`e.g. ${todayExample}`}
                     customInput={
                       <input
-                        onFocus={() => setDateError(false)}
                         style={{
                           width: "100%",
                           height: 48,
                           paddingLeft: 36,
-                          paddingRight: 12,
-                          fontSize: 16,
                           borderRadius: 8,
-                          border: dateError
-                            ? "1px solid #EF4444"
-                            : "1px solid #D1D5DB",
-                          backgroundColor: "#FFFFFF",
-                          color: "#111827",
+                          border: "1px solid #D1D5DB",
                         }}
                       />
                     }
@@ -229,174 +224,134 @@ export default function SearchScreen() {
               ) : (
                 <TouchableOpacity
                   style={styles.inputWrapper}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    setShowCalendar(true);
-                    setDateError(false);
-                  }}
+                  onPress={() => setShowCalendar(true)}
                 >
-                  <Feather
-                    name="calendar"
-                    size={16}
-                    color="#6B7280"
-                    style={styles.inputIcon}
-                  />
-                  <Text style={[styles.dateText, dateError && styles.inputError]}>
-                    {searchData.date ? searchData.date : `e.g. ${todayExample}`}
+                  <Feather name="calendar" size={16} color="#6B7280" style={styles.inputIcon} />
+                  <Text style={styles.dateText}>
+                    {searchData.date || `e.g. ${todayExample}`}
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Mobile calendar */}
-            {Platform.OS !== "web" && showCalendar && (
-              <DateTimePicker
-                value={selectedDate ?? new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, dateValue?: Date) => {
-                  setShowCalendar(false);
-
-                  if (dateValue) {
-                    setDateError(false);
-
-                    setSelectedDate(dateValue);
-                    const formattedDate = formatLocalDate(dateValue);
-                    setSearchData({ ...searchData, date: formattedDate });
-                  }
-                }}
-              />
-            )}
-
-            {/* Search Button */}
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={handleSearch}
-              activeOpacity={0.8}
-            >
-              <Feather
-                name="search"
-                size={16}
-                color="#FFFFFF"
-                style={styles.buttonIcon}
-              />
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
               <Text style={styles.searchButtonText}>Find Transporters</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Results */}
+        {loading && (
+          <Text style={{ textAlign: "center", marginTop: 20 }}>
+            Loading trips...
+          </Text>
+        )}
+
+        {!loading && trips.length === 0 && (
+          <Text style={{ textAlign: "center", marginTop: 20 }}>
+            No trips found
+          </Text>
+        )}
+
+        {!loading &&
+  trips.map((trip) => {
+    const searchArrival = searchData.deliveryCity.toLowerCase();
+
+    const filteredStops = (trip.collectionStops || []).filter(
+      (s: any) => s.city.toLowerCase() === searchArrival
+    );
+
+    return (
+      <TouchableOpacity
+        key={trip.id}
+        style={styles.resultCard}
+        onPress={() => {
+          if (!trip.transporterId) return;
+
+          router.push({
+            pathname: "/transporter-details/[id]",
+            params: { id: trip.transporterId },
+          });
+        }}
+      >
+        {/* ROUTE */}
+        <View style={styles.routeRow}>
+          <Feather name="map-pin" size={16} color="#6B7280" />
+          <Text style={styles.routeText}>
+            {trip.departureCity} → {trip.arrivalCity}
+          </Text>
+        </View>
+
+        {/* DATE */}
+        <View style={styles.row}>
+          <Feather name="calendar" size={14} color="#9CA3AF" />
+          <Text style={styles.date}>
+            {formatDateTime(trip.departureTime)}
+          </Text>
+        </View>
+
+        {/* FILTERED STOPS (ONLY MATCHED) */}
+        {filteredStops.map((s: any, i: number) => (
+          <View key={i} style={styles.row}>
+            <Feather name="map-pin" size={14} color="#9CA3AF" />
+            <Text style={styles.stopText}>
+              {s.city} • {formatDateTime(s.stopTime)}
+            </Text>
+          </View>
+        ))}
+
+        {/* PRICE */}
+        <Text style={styles.capacity}>
+          {trip.availableCapacityKg} kg • €{trip.pricePerKg}/kg
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
       </ScrollView>
+
+      <Toast />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
 
-  header: {
-    backgroundColor: "#2563EB",
-    padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: { elevation: 4 },
-    }),
-  },
+  header: { backgroundColor: "#2563EB", padding: 16 },
 
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  headerContent: { flexDirection: "row", alignItems: "center", gap: 12 },
 
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
 
-  main: {
-    flex: 1,
-    padding: 16,
-  },
+  main: { flex: 1, padding: 20 },
 
-  titleSection: {
-    paddingVertical: 32,
-    gap: 8,
-  },
+  titleSection: { paddingVertical: 32 },
 
-  title: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#111827",
-  },
+  title: { fontSize: 30, fontWeight: "bold" },
 
-  subtitle: {
-    fontSize: 16,
-    color: "#6B7280",
-  },
+  subtitle: { color: "#6B7280" },
 
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 8,
+    backgroundColor: "#FFF",
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    marginBottom: 16,
+    marginBottom: 20,
   },
 
-  cardHeader: {
-    padding: 24,
-    paddingBottom: 16,
-  },
+  cardHeader: { padding: 20 },
 
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#111827",
-  },
+  cardTitle: { fontSize: 18, fontWeight: "bold" },
 
-  cardContent: {
-    padding: 24,
-    paddingTop: 0,
-  },
+  cardContent: { padding: 20 },
 
-  inputGroup: {
-    marginBottom: 16,
-  },
+  inputGroup: { marginBottom: 16 },
 
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#374151",
-    marginBottom: 8,
-  },
+  label: { marginBottom: 6 },
 
-  labelError: {
-    color: "#EF4444",
-  },
+  inputWrapper: { flexDirection: "row", alignItems: "center" },
 
-  inputWrapper: {
-    position: "relative",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  inputIcon: {
-    position: "absolute",
-    left: 12,
-    zIndex: 1,
-  },
+  inputIcon: { position: "absolute", left: 10 },
 
   input: {
     flex: 1,
@@ -405,60 +360,63 @@ const styles = StyleSheet.create({
     borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingLeft: 36,
-    paddingRight: 12,
-    fontSize: 16,
-    backgroundColor: "#FFFFFF",
-    color: "#111827",
   },
 
   dateText: {
     flex: 1,
     height: 48,
     lineHeight: 48,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
     paddingLeft: 36,
-    paddingRight: 12,
-    fontSize: 16,
-    backgroundColor: "#FFFFFF",
-    color: "#111827",
-  },
-
-  inputError: {
-    borderColor: "#EF4444",
-  },
-
-  webDateWrapper: {
-    position: "relative",
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-  },
-
-  webCalendarIcon: {
-    position: "absolute",
-    left: 12,
-    zIndex: 2,
   },
 
   searchButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "#2563EB",
-    height: 52,
+    height: 50,
     borderRadius: 8,
-    marginTop: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
-  buttonIcon: {
-    marginRight: 8,
+  searchButtonText: { color: "#FFF", fontWeight: "600" },
+
+  resultCard: {
+    backgroundColor: "#FFF",
+    padding: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 12,
   },
 
-  searchButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  routeRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  marginBottom: 6,
+},
+
+routeText: {
+  fontWeight: "bold",
+  fontSize: 16,
+},
+
+row: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 6,
+  marginTop: 2,
+},
+
+stopText: {
+  color: "#6B7280",
+},
+  route: { fontWeight: "bold" },
+
+  date: { color: "#6B7280" },
+
+  capacity: { marginTop: 8, fontWeight: "600" },
+
+  webDateWrapper: { position: "relative" },
+
+  webCalendarIcon: { position: "absolute", left: 10, top: 16 },
 });
