@@ -1,7 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Picker } from '@react-native-picker/picker';
 import {
   ActivityIndicator,
   Image,
@@ -13,33 +12,72 @@ import {
   TouchableOpacity,
   View,
   Modal,
+  Switch,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { apiClient } from '../services/backService';
-import { getToken } from '../utils/tokenStorage';
+import { getToken , getUserId} from '../utils/tokenStorage';
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams();
 
-    const [loading, setLoading] = useState(true);
-    const [profile, setProfile] = useState<any>(null);
-    const [userInfo, setUserInfo] = useState<any>(null);
-    const [isBookingOpen, setIsBookingOpen] = useState(false);
-    const [step, setStep] = useState(1);
-    const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-    const [parcel, setParcel] = useState({
+const { id, tripId } = useLocalSearchParams<{
+  id: string;
+  tripId: string;
+}>();
+
+
+const [message, setMessage] = useState<string | null>(null);
+const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const [step, setStep] = useState(1);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isFragile, setIsFragile] = useState(false);
+const [paymentMethod, setPaymentMethod] =
+  useState<'PICKUP' | 'DELIVERY'>('PICKUP');
+  const [parcel, setParcel] = useState({
     type: '',
     description: '',
     weightKg: '',
     length: '',
     width: '',
     height: '',
+    fragile: false,
   });
-  const [recipient, setRecipient] = useState({
+const [delivery, setDelivery] = useState({
+  pickupAddress: '',
+  pickupCity: '',
+  pickupPostalCode: '',
+  deliveryAddress: '',
+  deliveryCity: '',
+  deliveryPostalCode: '',
+  phone: '',
+});
+ const [recipient, setRecipient] = useState({
   fullName: '',
   phoneNumber: '',
-  address: '',
+  street: '',
+  city: '',
+  postalCode: '',
 });
+
+  const categories = [
+    { label: 'Electroménager', value: 'ELECTROMENAGER' },
+    { label: 'Commercial', value: 'COMMERCIAL' },
+    { label: 'Standard', value: 'STANDARD' },
+  ];
+
+  
+ useEffect(() => {
+  if (message) {
+    const timer = setTimeout(() => setMessage(null), 3000);
+    return () => clearTimeout(timer);
+  }
+}, [message]);
 
   useEffect(() => {
     loadTransporterData();
@@ -60,7 +98,7 @@ export default function TransporterProfileScreen() {
       });
       setProfile(profileResponse.data);
     } catch (error) {
-      console.error('[TRANSPORTER-PROFILE] Failed to load data:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -70,58 +108,105 @@ export default function TransporterProfileScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
   }
 
-  const displayName = profile?.displayName || 'Unknown';
-  const initials = displayName
-    ? displayName
-        .split(' ')
-        .map((n: string) => n[0])
-        .join('')
-        .toUpperCase()
-    : '?';
+const handleConfirm = async () => {
+  
+  if (isBooking) return;
 
+  try {
+    setIsBooking(true);
+
+    const token = await getToken();
+    const senderId = await getUserId();
+
+    if (!senderId) {
+      throw new Error("User not authenticated");
+    }
+
+    const requestBody = {
+      senderId: senderId,
+      tripId: tripId,
+      parcels: [
+        {
+          type: parcel.type,
+          description: parcel.description,
+          weightKg: parseFloat(parcel.weightKg),
+          dimensions: `${parcel.length}x${parcel.width}x${parcel.height}`,
+        },
+      ],
+      recipient: {
+        fullName: recipient.fullName,
+        phoneNumber: recipient.phoneNumber,
+        tunisiaAddress: `${recipient.street}, ${recipient.city} ${recipient.postalCode}`,
+      },
+    };
+
+    console.log("FINAL REQUEST BODY:", JSON.stringify(requestBody, null, 2));
+
+
+  const response = await apiClient.post('/bookings', requestBody, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+setMessage("Booking confirmed");
+setIsBookingOpen(false);
+
+} catch (error: any) {
+  const message =
+    error.response?.data?.message ??
+    error.message ??
+    "Something went wrong";
+
+setMessage("You already booked this trip");
+setIsBookingOpen(false);
+
+} finally {
+  setIsBooking(false);
+}
+  };
+console.log("FINAL RECIPIENT:", {
+  fullName: recipient.fullName,
+  phoneNumber: recipient.phoneNumber,
+  address: `${recipient.street}, ${recipient.city} ${recipient.postalCode}`,
+});
+  const displayName = profile?.displayName || 'Unknown';
   const imageUrl = userInfo?.imageUrl || null;
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+        {message && (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{message}</Text>
+          </View>
+        )}
+      {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color="#FFFFFF" />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Feather name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Transporter Profile</Text>
       </View>
 
-      {/* Content */}
+      {/* PROFILE */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-            )}
-          </View>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>?</Text>
+            </View>
+          )}
 
           <Text style={styles.profileName}>{displayName}</Text>
-          <Text style={styles.profileBio}>{profile?.bio || 'No bio provided'}</Text>
-
-          <View style={styles.licenseContainer}>
-            <Feather name="truck" size={16} color="#2563EB" />
-            <Text style={styles.licenseText}>
-              {profile?.licensePlate || 'No license plate'}
-            </Text>
-          </View>
+          <Text style={styles.profileBio}>{profile?.bio || 'No bio'}</Text>
         </View>
       </ScrollView>
 
-      {/* Bottom buttons */}
+      {/* BUTTONS */}
       <View style={styles.bottomBar}>
         <TouchableOpacity
           style={styles.bookButton}
@@ -137,154 +222,395 @@ export default function TransporterProfileScreen() {
           <Text style={styles.whatsappText}>WhatsApp</Text>
         </TouchableOpacity>
       </View>
+       
+      {/* MODAL */}
 
-      {/* Modal */}
       <Modal visible={isBookingOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
+                
             <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Step {step} / 4</Text>
+             <View style={styles.modalHeader}>
+  
+                <Text style={styles.modalMainTitle}>
+                  {step === 1 && 'Déclaration du colis'}
+                  {step === 2 && 'Adresses'}
+                  {step === 3 && 'Récapitulatif'}
+                </Text>
+
+                <TouchableOpacity onPress={() => setIsBookingOpen(false)}>
+                  <Text style={styles.closeIcon}>✕</Text>
+                </TouchableOpacity>
+
+              </View>
+
+              {/* Progress */}
+              <Text style={styles.stepText}>Étape {step} / 3 </Text>
+
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: `${(step / 3 ) * 100}%` }]} />
+              </View>
 
               {/* STEP 1 */}
               {step === 1 && (
-                <View style={{ marginTop: 10 }}>
-                 <Text>Catégorie</Text>
+                <View>
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.iconBox}>
+                      <Feather name="package" size={20} color="#2563EB" />
+                    </View>
 
-                <TouchableOpacity
-                style={styles.selectBox}
-                onPress={() => setIsCategoryOpen(!isCategoryOpen)}
-                >
-                <Text
-                    style={{
-                    color: parcel.type ? '#111827' : '#9CA3AF',
-                    }}
-                >
-                    {parcel.type || 'Sélectionner une catégorie'}
-                </Text>
-                </TouchableOpacity>
+                    <View>
+                      <Text style={styles.sectionTitle}>Déclaration du colis</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        Décrivez votre colis en détail
+                      </Text>
+                    </View>
+                  </View>
+                  <Text>Catégorie</Text>
 
-                {isCategoryOpen && (
-                <View style={styles.dropdown}>
-                    {['ELECTRONICS', 'CLOTHES', 'DOCUMENTS', 'FRAGILE', 'OTHER'].map((item) => (
-                    <TouchableOpacity
-                        key={item}
-                        style={styles.dropdownItem}
-                        onPress={() => {
-                        setParcel({ ...parcel, type: item });
-                        setIsCategoryOpen(false);
-                        }}
-                    >
-                        <Text style={{ color: '#111827' }}>{item}</Text>
-                    </TouchableOpacity>
-                    ))}
-                </View>
-                )}
+                  <TouchableOpacity
+                    style={styles.selectBox}
+                    onPress={() => setIsCategoryOpen(!isCategoryOpen)}
+                  >
+                    <Text style={{ color: parcel.type ? '#111' : '#9CA3AF' }}>
+                      {categories.find(c => c.value === parcel.type)?.label || 'Sélectionner une catégorie'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {isCategoryOpen && (
+                    <View style={styles.dropdown}>
+                      {categories.map((item) => (
+                        <TouchableOpacity
+                          key={item.value}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setParcel({ ...parcel, type: item.value });
+                            setIsCategoryOpen(false);
+                          }}
+                        >
+                          <Text>{item.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
 
                   <Text>Description</Text>
                   <TextInput
-                    placeholder="Describe your parcel"
+                    placeholder="Décrire le colis..."
                     placeholderTextColor="#9CA3AF"
-                    value={parcel.description}
-                    onChangeText={(text) => setParcel({ ...parcel, description: text })}
                     style={styles.input}
+                    value={parcel.description}
+                    onChangeText={(t) => setParcel({ ...parcel, description: t })}
                   />
 
-                  <Text>Weight (kg)</Text>
-                  <TextInput
+                  <Text>Poids (kg)</Text>
+                 <TextInput
                     placeholder="5"
                     placeholderTextColor="#9CA3AF"
-                    keyboardType="numeric"
-                    value={parcel.weightKg}
-                    onChangeText={(text) => setParcel({ ...parcel, weightKg: text })}
                     style={styles.input}
+                    value={parcel.weightKg}
+                    onChangeText={(t) => setParcel({ ...parcel, weightKg: t })}
                   />
 
-                  <Text>Dimensions (cm)</Text>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <TextInput
-                      placeholder="L"
-                      placeholderTextColor="#9CA3AF"
-                      value={parcel.length}
-                      onChangeText={(text) => setParcel({ ...parcel, length: text })}
-                      style={[styles.input, { width: '30%' }]}
-                    />
-                    <TextInput
-                      placeholder="W"
-                      placeholderTextColor="#9CA3AF"
-                      value={parcel.width}
-                      onChangeText={(text) => setParcel({ ...parcel, width: text })}
-                      style={[styles.input, { width: '30%' }]}
-                    />
-                    <TextInput
-                      placeholder="H"
-                      placeholderTextColor="#9CA3AF"
-                      value={parcel.height}
-                      onChangeText={(text) => setParcel({ ...parcel, height: text })}
-                      style={[styles.input, { width: '30%' }]}
+                 <Text>Dimensions (cm)</Text>
+
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        placeholder="L"
+                        placeholderTextColor="#9CA3AF"
+                        value={parcel.length}
+                        onChangeText={(t) => setParcel({ ...parcel, length: t })}
+                      />
+
+                      <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        placeholder="W"
+                        placeholderTextColor="#9CA3AF"
+                        value={parcel.width}
+                        onChangeText={(t) => setParcel({ ...parcel, width: t })}
+                      />
+
+                      <TextInput
+                        style={[styles.input, { flex: 1 }]}
+                        placeholder="H"
+                        placeholderTextColor="#9CA3AF"
+                        value={parcel.height}
+                        onChangeText={(t) => setParcel({ ...parcel, height: t })}
+                      />
+                    </View>
+                  {/* FRAGILE */}
+                  <View style={styles.fragileBox}>
+                    <View>
+                      <Text style={styles.fragileTitle}>Fragile</Text>
+                      <Text style={styles.fragileSubtitle}>
+                        Colis nécessitant une attention particulière
+                      </Text>
+                    </View>
+
+                    <Switch
+                      value={isFragile}
+                      onValueChange={setIsFragile}
                     />
                   </View>
+
+                  {/* PHOTO UPLOAD */}
+                  <View style={styles.uploadBox}>
+                    <Feather name="upload" size={24} color="#9CA3AF" />
+                    <Text style={styles.uploadText}>Ajouter une photo</Text>
+                  </View>
+
                 </View>
-                                )}
-                    {step === 2 && (
-                    <View style={{ marginTop: 10 }}>
+              )}
 
-                        <Text>Nom du destinataire</Text>
-                        <TextInput
-                        placeholder="Nom complet"
-                        placeholderTextColor="#9CA3AF"
-                        value={recipient.fullName}
-                        onChangeText={(text) => setRecipient({ ...recipient, fullName: text })}
-                        style={styles.input}
-                        />
+              {/* STEP 2 */}
+             {step === 2 && (
+                <View>
 
-                        <Text>Téléphone</Text>
-                        <TextInput
-                        placeholder="+216 XX XXX XXX"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="phone-pad"
-                        value={recipient.phoneNumber}
-                        onChangeText={(text) => setRecipient({ ...recipient, phoneNumber: text })}
-                        style={styles.input}
-                        />
+                  {/* COLLECT ADDRESS */}
+                  <View style={styles.addressSection}>
+                    <View style={styles.addressHeader}>
+                      <View style={styles.addressIconBlue}>
+                        <Feather name="map-pin" size={18} color="#2563EB" />
+                      </View>
 
-                        <Text>Adresse de livraison (Tunisie)</Text>
-                        <TextInput
-                        placeholder="Rue, ville, code postal..."
-                        placeholderTextColor="#9CA3AF"
-                        value={recipient.address}
-                        onChangeText={(text) => setRecipient({ ...recipient, address: text })}
-                        style={[styles.input, { height: 80 }]}
-                        multiline
-                        />
-
+                      <View>
+                        <Text style={styles.addressTitle}>
+                          Adresse de collecte (France)
+                        </Text>
+                        <Text style={styles.addressSubtitle}>
+                          Où récupérer votre colis
+                        </Text>
+                      </View>
                     </View>
-                    )}
-              {step === 3 && <Text style={{ marginTop: 10 }}>Step 3: Paiement</Text>}
-              {step === 4 && <Text style={{ marginTop: 10 }}>Step 4: Récapitulatif</Text>}
 
-              {/* NAV */}
-              <View style={styles.navRow}>
-                {step > 1 && (
-                  <TouchableOpacity onPress={() => setStep(step - 1)}>
-                    <Text>Back</Text>
+                    <TextInput
+                      value="123 Rue de la République"
+                      editable={false}
+                      style={styles.input}
+                    />
+
+                    <View style={styles.row}>
+                      <TextInput value="Paris" editable={false} style={[styles.input, styles.half]} />
+                      <TextInput value="75001" editable={false} style={[styles.input, styles.half]} />
+                    </View>
+                  </View>
+
+
+                  {/* DELIVERY ADDRESS */}
+                  <View style={{ marginTop: 20 }}>
+                    <View style={styles.addressHeader}>
+                      <View style={styles.addressIconOrange}>
+                        <Feather name="map-pin" size={18} color="#F97316" />
+                      </View>
+
+                      <View>
+                        <Text style={styles.addressTitle}>
+                          Adresse de livraison (Tunisie)
+                        </Text>
+                        <Text style={styles.addressSubtitle}>
+                          Destination en Tunisie
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TextInput
+                      placeholder="Rue"
+                      placeholderTextColor="#9CA3AF"
+                      style={styles.input}
+                      value={recipient.street}
+                      onChangeText={(text) =>
+                        setRecipient({ ...recipient, street: text })
+                      }
+                    />
+
+                    <View style={styles.row}>
+                      <TextInput
+                          placeholder="Ville"
+                          placeholderTextColor="#9CA3AF"
+                          style={[styles.input, styles.half]}
+                          value={recipient.city}
+                          onChangeText={(text) =>
+                            setRecipient({ ...recipient, city: text })
+                          }
+                        />
+                      <TextInput
+                          placeholder="Code postal"
+                          placeholderTextColor="#9CA3AF"
+                          style={[styles.input, styles.half]}
+                          value={recipient.postalCode}
+                          onChangeText={(text) =>
+                            setRecipient({ ...recipient, postalCode: text })
+                          }
+                        />
+                    </View>
+
+                    <Text style={styles.label}>Nom du destinataire</Text>
+                    <TextInput
+                      placeholder="Nom complet"
+                      placeholderTextColor="#9CA3AF"
+                      value={recipient.fullName}
+                      onChangeText={(text) =>
+                        setRecipient({ ...recipient, fullName: text })
+                      }
+                      style={styles.input}
+                    />
+                    <TextInput
+                      placeholder="Téléphone destinataire"
+                      placeholderTextColor="#9CA3AF"
+                      style={styles.input}
+                      value={recipient.phoneNumber}
+                      onChangeText={(text) =>
+                        setRecipient({ ...recipient, phoneNumber: text })
+                      }
+                    />
+                  </View>
+
+                </View>
+              )}
+
+              {/* STEP 3 */}
+                        {step === 3 && (
+                <View style={styles.recapContainer}>
+
+                  {/* COLIS */}
+                  <View style={styles.card}>
+                    <View style={styles.sectionHeader}>
+                      <Feather name="package" size={18} color="#6B7280" />
+                      <Text style={styles.cardTitle}>Colis</Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Catégorie</Text>
+                      <Text style={styles.value}>{parcel.type || '-'}</Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Poids</Text>
+                      <Text style={styles.value}>{parcel.weightKg || '-'} kg</Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>Dimensions</Text>
+                      <Text style={styles.value}>
+                        {parcel.length || '-'} × {parcel.width || '-'} × {parcel.height || '-'} cm
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* ADDRESSES */}
+                  <View style={styles.card}>
+                    <View style={styles.sectionHeader}>
+                      <Feather name="map-pin" size={18} color="#6B7280" />
+                      <Text style={styles.cardTitle}>Adresses</Text>
+                    </View>
+
+                    <Text style={styles.subSection}>Collecte (France)</Text>
+                    <Text style={styles.value}>
+                      123 Rue de la République, Paris 75001
+                    </Text>
+
+                    <View style={{ height: 12 }} />
+
+                    <Text style={styles.subSection}>Livraison (Tunisie)</Text>
+                    <Text style={styles.value}>
+                      {recipient.street || recipient.city || recipient.postalCode
+                        ? `${recipient.street}, ${recipient.city} ${recipient.postalCode}`
+                        : '-'}
+                    </Text>
+                    <Text style={styles.value}>{recipient.phoneNumber || '-'}</Text>
+                  </View>
+
+                  {/* PAYMENT */}
+                  <View style={styles.card}>
+                    <View style={styles.sectionHeader}>
+                      <Feather name="credit-card" size={18} color="#6B7280" />
+                      <Text style={styles.cardTitle}>Mode de paiement</Text>
+                    </View>
+
+                   
+                     {['PICKUP', 'DELIVERY'].map((method) => (
+                        <TouchableOpacity
+                          key={method}
+                          onPress={() => setPaymentMethod(method as 'PICKUP' | 'DELIVERY')}
+                          style={[
+                            styles.paymentRow,
+                            paymentMethod === method && styles.paymentSelected,
+                          ]}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.radioCircle}>
+                            {paymentMethod === method && <View style={styles.radioDot} />}
+                          </View>
+
+                          <View>
+                            <Text style={styles.paymentTitle}>
+                              {method === 'PICKUP'
+                                ? 'Espèces à la collecte (France)'
+                                : 'Espèces à la livraison (Tunisie)'}
+                            </Text>
+
+                            <Text style={styles.paymentSubtitle}>
+                              {method === 'PICKUP'
+                                ? 'Paiement en France lors de la collecte'
+                                : 'Paiement en Tunisie lors de la livraison'}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                  </View>
+
+                  {/* PRICE */}
+                  <View style={styles.priceCard}>
+                    <Text style={styles.priceLabel}>Prix total</Text>
+                    <Text style={styles.priceValue}>599€</Text>
+                  </View>
+
+                </View>
+              )}
+                              {/* NAV */}
+              <View style={styles.footerButtons}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  {step > 1 && (
+                    <TouchableOpacity
+                      style={styles.backButton}
+                      onPress={() => setStep(step - 1)}
+                    >
+                      <Text style={styles.backText}>Retour</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setIsBookingOpen(false)}
+                  >
+                    <Text style={styles.closeButtonText}>Fermer</Text>
                   </TouchableOpacity>
-                )}
+                </View>
 
-                {step < 4 ? (
-                  <TouchableOpacity onPress={() => setStep(step + 1)}>
-                    <Text>Next</Text>
+                {step < 3 ? (
+                  <TouchableOpacity
+                    style={styles.nextButton}
+                    onPress={() => setStep(step + 1)}
+                  >
+                    <Text style={styles.nextText}>Suivant</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => setIsBookingOpen(false)}>
-                    <Text style={{ color: 'green' }}>Confirm</Text>
+                  <TouchableOpacity 
+                        onPress={handleConfirm}
+                        disabled={isBooking}
+                        style={[
+                          styles.confirmButton,
+                          isBooking && { opacity: 0.5 }
+                        ]}
+>
+                    <Text style={styles.confirmText}>Confirmer</Text>
                   </TouchableOpacity>
                 )}
               </View>
 
-              <TouchableOpacity onPress={() => setIsBookingOpen(false)}>
-                <Text style={{ color: 'red', marginTop: 10 }}>Close</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            </ScrollView> 
+            <Toast />
           </View>
         </View>
       </Modal>
@@ -292,84 +618,52 @@ export default function TransporterProfileScreen() {
   );
 }
 
+             
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#6B7280' },
 
   header: {
     backgroundColor: '#2563EB',
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
 
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF', flex: 1 },
+  headerTitle: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
 
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  scrollContent: { padding: 16 },
 
   profileCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
   },
 
-  avatar: { width: 110, height: 110, borderRadius: 55 },
+  avatar: { width: 100, height: 100, borderRadius: 50 },
   avatarPlaceholder: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#2563EB',
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  avatarText: { fontSize: 36, color: '#FFF', fontWeight: 'bold' },
-  profileName: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },
-  profileBio: { color: '#6B7280', marginBottom: 16 },
-
-  licenseContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  licenseText: { fontWeight: '600' },
-
-  bottomBar: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    backgroundColor: '#FFF',
-  },
-
-  bookButton: {
-    flex: 1,
-    backgroundColor: '#2563EB',
-    padding: 14,
-    borderRadius: 10,
     alignItems: 'center',
   },
 
-  whatsappButton: {
-    flex: 1,
-    backgroundColor: '#25D366',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
+  avatarText: { color: '#fff', fontSize: 30 },
 
-  bookText: { color: '#FFF' },
-  whatsappText: { color: '#FFF' },
+  profileName: { fontSize: 22, fontWeight: 'bold' },
+  profileBio: { color: '#6B7280' },
 
-  input: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 5,
-    marginBottom: 10,
-    color: '#111827',
-    outlineWidth: 0,
-  },
+  bottomBar: { flexDirection: 'row', padding: 16, gap: 10 },
+
+  bookButton: { flex: 1, backgroundColor: '#2563EB', padding: 14, borderRadius: 10, alignItems: 'center' },
+  whatsappButton: { flex: 1, backgroundColor: '#25D366', padding: 14, borderRadius: 10, alignItems: 'center' },
+
+  bookText: { color: '#fff' },
+  whatsappText: { color: '#fff' },
 
   modalOverlay: {
     flex: 1,
@@ -381,14 +675,19 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '90%',
     maxHeight: '80%',
-    backgroundColor: '#FFF',
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
   },
 
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  modalTitle: { fontSize: 18, fontWeight: 'bold' },
+
+  input: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
   },
 
   navRow: {
@@ -396,57 +695,388 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
   },
-  categoryContainer: {
+
+  selectBox: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+  },
+
+  dropdown: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalHeader: {
   flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: 8,
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+
+modalMainTitle: {
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: '#111827',
+},
+
+closeIcon: {
+  fontSize: 18,
+  color: '#6B7280',
+},
+
+stepText: {
+  marginTop: 10,
+  fontSize: 12,
+  color: '#6B7280',
+},
+
+progressBar: {
+  height: 6,
+  backgroundColor: '#E5E7EB',
+  borderRadius: 10,
+  marginTop: 6,
+  marginBottom: 15,
+},
+
+progressFill: {
+  height: 6,
+  backgroundColor: '#2563EB',
+  borderRadius: 10,
+},
+
+iconBox: {
+  width: 40,
+  height: 40,
+  borderRadius: 10,
+  backgroundColor: '#EFF6FF',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+sectionTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#111827',
+},
+
+sectionSubtitle: {
+  fontSize: 12,
+  color: '#6B7280',
+},
+fragileBox: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: 12,
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  borderRadius: 10,
+  marginTop: 10,
+},
+
+fragileTitle: {
+  fontSize: 14,
+  fontWeight: '600',
+},
+
+fragileSubtitle: {
+  fontSize: 12,
+  color: '#6B7280',
+},
+
+uploadBox: {
+  marginTop: 15,
+  borderWidth: 1,
+  borderStyle: 'dashed',
+  borderColor: '#D1D5DB',
+  borderRadius: 10,
+  padding: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+
+uploadText: {
   marginTop: 8,
+  fontSize: 12,
+  color: '#6B7280',
+},
+addressSection: {
+  marginTop: 10,
+},
+
+addressHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
   marginBottom: 10,
 },
 
-categoryItem: {
+addressIconBlue: {
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  backgroundColor: '#EFF6FF',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+addressIconOrange: {
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  backgroundColor: '#FFF7ED',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+addressTitle: {
+  fontSize: 14,
+  fontWeight: '600',
+},
+
+addressSubtitle: {
+  fontSize: 12,
+  color: '#6B7280',
+},
+
+half: {
+  flex: 1,
+},
+paymentOption: {
+  flexDirection: 'row',
+  gap: 12,
+  alignItems: 'center',
+  padding: 14,
   borderWidth: 1,
   borderColor: '#E5E7EB',
-  borderRadius: 20,
-  paddingVertical: 6,
-  paddingHorizontal: 12,
-  backgroundColor: '#F9FAFB',
+  borderRadius: 12,
+  marginBottom: 10,
 },
 
-categoryItemSelected: {
-  backgroundColor: '#2563EB',
+radioCircle: {
+  width: 18,
+  height: 18,
+  borderRadius: 9,
+  borderWidth: 2,
   borderColor: '#2563EB',
+  justifyContent: 'center',
+  alignItems: 'center',
 },
 
-categoryText: {
-  color: '#374151',
+radioDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: '#2563EB',
 },
 
-categoryTextSelected: {
+paymentTitle: {
+  fontSize: 14,
+  fontWeight: '600',
+},
+
+sectionRecapTitle: {
+  fontSize: 14,
+  fontWeight: '600',
+  marginTop: 15,
+  marginBottom: 8,
+},
+
+recapBox: {
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  borderRadius: 10,
+  padding: 12,
+},
+
+priceBox: {
+  marginTop: 20,
+  padding: 15,
+  backgroundColor: '#F3F4F6',
+  borderRadius: 10,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+},
+footerButtons: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginTop: 20,
+},
+
+/* LEFT BUTTONS */
+backButton: {
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  paddingVertical: 10,
+  paddingHorizontal: 16,
+  borderRadius: 8,
+  backgroundColor: '#FFFFFF',
+},
+
+backText: {
+  color: '#111827',
+  fontWeight: '500',
+},
+
+closeButton: {
+  paddingVertical: 10,
+  paddingHorizontal: 10,
+},
+
+closeButtonText: {
+  color: '#EF4444',
+  fontWeight: '500',
+},
+
+/* RIGHT BUTTON */
+nextButton: {
+  backgroundColor: '#2563EB',
+  paddingVertical: 10,
+  paddingHorizontal: 20,
+  borderRadius: 8,
+},
+
+nextText: {
   color: '#FFFFFF',
   fontWeight: '600',
 },
-selectBox: {
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
+
+confirmButton: {
+  backgroundColor: '#2563EB', 
+  paddingVertical: 10,
+  paddingHorizontal: 20,
   borderRadius: 8,
-  padding: 12,
-  marginTop: 5,
-  marginBottom: 10,
-  backgroundColor: '#FFFFFF',
 },
 
-dropdown: {
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  borderRadius: 8,
-  backgroundColor: '#FFFFFF',
+confirmText: {
+  color: '#FFFFFF',
+  fontWeight: '600',
+},
+ 
+card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+  },
+
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  label: {
+    color: '#777',
+    fontSize: 13,
+  },
+
+  value: {
+    color: '#222',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  subSection: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+
+  paymentCard: {
+    backgroundColor: '#f1f3f5',
+    padding: 12,
+    borderRadius: 10,
+  },
+
+  paymentSubtitle: {
+    fontSize: 12,
+    color: '#777',
+    marginTop: 4,
+  },
+
+  priceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  priceLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+
+  priceValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2563eb',
+  },
+  recapContainer: {
+    padding: 16,
+    backgroundColor: '#f5f6f8',
+  },
+  sectionHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
   marginBottom: 10,
 },
 
-dropdownItem: {
+paymentRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
   padding: 12,
-  borderBottomWidth: 1,
-  borderBottomColor: '#F3F4F6',
+  borderWidth: 1,
+  borderColor: '#E5E7EB',
+  borderRadius: 10,
+  marginBottom: 10,
+},
+
+paymentSelected: {
+  borderColor: '#2563EB',
+  backgroundColor: '#EFF6FF',
+},
+toast: {
+  position: 'absolute',
+  top: 80,
+  left: 20,
+  right: 20,
+  backgroundColor: '#111',
+  padding: 12,
+  borderRadius: 10,
+  zIndex: 9999,
+  elevation: 9999,
+},
+
+toastText: {
+  color: '#fff',
+  textAlign: 'center',
+  fontWeight: '600',
 },
 });
