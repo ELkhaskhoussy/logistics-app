@@ -36,33 +36,27 @@ const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [step, setStep] = useState(1);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isFragile, setIsFragile] = useState(false);
-const [paymentMethod, setPaymentMethod] =
-  useState<'PICKUP' | 'DELIVERY'>('PICKUP');
-  const [parcel, setParcel] = useState({
+  const [showErrors, setShowErrors] = useState(false);
+  const [parcels, setParcels] = useState([
+  {
     type: '',
     description: '',
     weightKg: '',
-    length: '',
-    width: '',
-    height: '',
     fragile: false,
-  });
+  },
+]);
 const [delivery, setDelivery] = useState({
   pickupAddress: '',
   pickupCity: '',
   pickupPostalCode: '',
   deliveryAddress: '',
   deliveryCity: '',
-  deliveryPostalCode: '',
   phone: '',
 });
  const [recipient, setRecipient] = useState({
   fullName: '',
   phoneNumber: '',
   street: '',
-  city: '',
-  postalCode: '',
 });
 
   const categories = [
@@ -129,18 +123,15 @@ const handleConfirm = async () => {
     const requestBody = {
       senderId: senderId,
       tripId: tripId,
-      parcels: [
-        {
-          type: parcel.type,
-          description: parcel.description,
-          weightKg: parseFloat(parcel.weightKg),
-          dimensions: `${parcel.length}x${parcel.width}x${parcel.height}`,
-        },
-      ],
+      parcels: parcels.map(p => ({
+        type: p.type,
+        description: p.description,
+        weightKg: parseFloat(p.weightKg),
+      })),
       recipient: {
         fullName: recipient.fullName,
         phoneNumber: recipient.phoneNumber,
-        tunisiaAddress: `${recipient.street}, ${recipient.city} ${recipient.postalCode}`,
+        tunisiaAddress: recipient.street
       },
     };
 
@@ -170,7 +161,7 @@ setIsBookingOpen(false);
 console.log("FINAL RECIPIENT:", {
   fullName: recipient.fullName,
   phoneNumber: recipient.phoneNumber,
-  address: `${recipient.street}, ${recipient.city} ${recipient.postalCode}`,
+  address: `${recipient.street}`,
 });
   const displayName = profile?.displayName || 'Unknown';
   const imageUrl = userInfo?.imageUrl || null;
@@ -252,9 +243,7 @@ console.log("FINAL RECIPIENT:", {
               </View>
 
               {/* STEP 1 */}
-              {step === 1 && (
-                <View>
-                  <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeader}>
                     <View style={styles.iconBox}>
                       <Feather name="package" size={20} color="#2563EB" />
                     </View>
@@ -266,14 +255,60 @@ console.log("FINAL RECIPIENT:", {
                       </Text>
                     </View>
                   </View>
+              {step === 1 && (
+                <ScrollView>
+              {parcels.map((parcel, index) => (
+               <View
+                      key={index}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: 12,
+                        padding: 16,
+                        marginBottom: 16,
+                        borderWidth: 1,
+                        borderColor: '#E5E7EB',
+                      }}
+                    >
+                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+  
+                    <Text style={{ fontWeight: '600' }}>
+                      Colis {index + 1}
+                    </Text>
+
+                    {parcels.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          const updated = parcels.filter((_, i) => i !== index);
+                          setParcels(updated);
+                        }}
+                        style={{
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                          borderRadius: 8,
+                          backgroundColor: '#FEE2E2'
+                        }}
+                      >
+                        <Text style={{ color: '#DC2626', fontWeight: '600' }}>
+                          Supprimer
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    </View>
+                  
+                
                   <Text>Catégorie</Text>
 
                   <TouchableOpacity
-                    style={styles.selectBox}
+                    style={[
+                      styles.selectBox,
+                      showErrors && !parcel.type && { borderColor: 'red', borderWidth: 1 }
+                    ]}
                     onPress={() => setIsCategoryOpen(!isCategoryOpen)}
                   >
                     <Text style={{ color: parcel.type ? '#111' : '#9CA3AF' }}>
                       {categories.find(c => c.value === parcel.type)?.label || 'Sélectionner une catégorie'}
+
                     </Text>
                   </TouchableOpacity>
 
@@ -284,7 +319,9 @@ console.log("FINAL RECIPIENT:", {
                           key={item.value}
                           style={styles.dropdownItem}
                           onPress={() => {
-                            setParcel({ ...parcel, type: item.value });
+                            const updated = [...parcels];
+                            updated[index].type = item.value;
+                            setParcels(updated);
                             setIsCategoryOpen(false);
                           }}
                         >
@@ -298,47 +335,38 @@ console.log("FINAL RECIPIENT:", {
                   <TextInput
                     placeholder="Décrire le colis..."
                     placeholderTextColor="#9CA3AF"
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      showErrors && !parcel.description && { borderColor: 'red', borderWidth: 1 }
+                    ]}
                     value={parcel.description}
-                    onChangeText={(t) => setParcel({ ...parcel, description: t })}
+                    onChangeText={(t) => {
+                      const updated = [...parcels];
+                      updated[index].description = t;
+                      setParcels(updated);
+                    }}
                   />
+
+                  
 
                   <Text>Poids (kg)</Text>
-                 <TextInput
-                    placeholder="5"
-                    placeholderTextColor="#9CA3AF"
-                    style={styles.input}
-                    value={parcel.weightKg}
-                    onChangeText={(t) => setParcel({ ...parcel, weightKg: t })}
-                  />
+                  <TextInput
+                      placeholder="5"
+                      placeholderTextColor="#9CA3AF"
+                      style={[
+                        styles.input,
+                        showErrors && !parcel.weightKg && { borderColor: 'red', borderWidth: 1 }
+                      ]}
 
-                 <Text>Dimensions (cm)</Text>
+                      value={parcel.weightKg}
+                      onChangeText={(t) => {
+                        const updated = [...parcels];
+                        updated[index].weightKg = t;
+                        setParcels(updated);
+                      }}
+                    />
 
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TextInput
-                        style={[styles.input, { flex: 1 }]}
-                        placeholder="L"
-                        placeholderTextColor="#9CA3AF"
-                        value={parcel.length}
-                        onChangeText={(t) => setParcel({ ...parcel, length: t })}
-                      />
-
-                      <TextInput
-                        style={[styles.input, { flex: 1 }]}
-                        placeholder="W"
-                        placeholderTextColor="#9CA3AF"
-                        value={parcel.width}
-                        onChangeText={(t) => setParcel({ ...parcel, width: t })}
-                      />
-
-                      <TextInput
-                        style={[styles.input, { flex: 1 }]}
-                        placeholder="H"
-                        placeholderTextColor="#9CA3AF"
-                        value={parcel.height}
-                        onChangeText={(t) => setParcel({ ...parcel, height: t })}
-                      />
-                    </View>
+                    
                   {/* FRAGILE */}
                   <View style={styles.fragileBox}>
                     <View>
@@ -349,9 +377,13 @@ console.log("FINAL RECIPIENT:", {
                     </View>
 
                     <Switch
-                      value={isFragile}
-                      onValueChange={setIsFragile}
-                    />
+                        value={parcel.fragile}
+                        onValueChange={(value) => {
+                          const updated = [...parcels];
+                          updated[index].fragile = value;
+                          setParcels(updated);
+                        }}
+                      />
                   </View>
 
                   {/* PHOTO UPLOAD */}
@@ -360,8 +392,23 @@ console.log("FINAL RECIPIENT:", {
                     <Text style={styles.uploadText}>Ajouter une photo</Text>
                   </View>
 
-                </View>
-              )}
+
+                    <TouchableOpacity
+                      style={styles.nextButton}
+                      onPress={() =>
+                        setParcels([
+                          ...parcels,
+                          { type: '', description: '', weightKg: '', fragile: false },
+                        ])
+                      }
+                    >
+                      <Text style={styles.nextText}>+ Ajouter un colis</Text>
+                    </TouchableOpacity>
+                    </View>
+                      ))}
+                    </ScrollView>
+                  )}
+          
 
               {/* STEP 2 */}
              {step === 2 && (
@@ -385,15 +432,10 @@ console.log("FINAL RECIPIENT:", {
                     </View>
 
                     <TextInput
-                      value="123 Rue de la République"
+                      value="Nantes"
                       editable={false}
                       style={styles.input}
                     />
-
-                    <View style={styles.row}>
-                      <TextInput value="Paris" editable={false} style={[styles.input, styles.half]} />
-                      <TextInput value="75001" editable={false} style={[styles.input, styles.half]} />
-                    </View>
                   </View>
 
 
@@ -415,35 +457,18 @@ console.log("FINAL RECIPIENT:", {
                     </View>
 
                     <TextInput
-                      placeholder="Rue"
+                      placeholder="ville"
                       placeholderTextColor="#9CA3AF"
-                      style={styles.input}
+                     style={[
+                      styles.input,
+                      showErrors && !recipient.street&& { borderColor: 'red', borderWidth: 1 }
+                    ]}
                       value={recipient.street}
                       onChangeText={(text) =>
                         setRecipient({ ...recipient, street: text })
                       }
                     />
-
-                    <View style={styles.row}>
-                      <TextInput
-                          placeholder="Ville"
-                          placeholderTextColor="#9CA3AF"
-                          style={[styles.input, styles.half]}
-                          value={recipient.city}
-                          onChangeText={(text) =>
-                            setRecipient({ ...recipient, city: text })
-                          }
-                        />
-                      <TextInput
-                          placeholder="Code postal"
-                          placeholderTextColor="#9CA3AF"
-                          style={[styles.input, styles.half]}
-                          value={recipient.postalCode}
-                          onChangeText={(text) =>
-                            setRecipient({ ...recipient, postalCode: text })
-                          }
-                        />
-                    </View>
+                    
 
                     <Text style={styles.label}>Nom du destinataire</Text>
                     <TextInput
@@ -453,17 +478,25 @@ console.log("FINAL RECIPIENT:", {
                       onChangeText={(text) =>
                         setRecipient({ ...recipient, fullName: text })
                       }
-                      style={styles.input}
+                      style={[
+                    styles.input,
+                    showErrors && !recipient.fullName && { borderColor: 'red', borderWidth: 1 }
+                  ]}
                     />
+                    
                     <TextInput
                       placeholder="Téléphone destinataire"
                       placeholderTextColor="#9CA3AF"
-                      style={styles.input}
+                     style={[
+                        styles.input,
+                        showErrors && !recipient.phoneNumber&& { borderColor: 'red', borderWidth: 1 }
+                      ]}
                       value={recipient.phoneNumber}
                       onChangeText={(text) =>
                         setRecipient({ ...recipient, phoneNumber: text })
                       }
                     />
+                    
                   </View>
 
                 </View>
@@ -480,22 +513,27 @@ console.log("FINAL RECIPIENT:", {
                       <Text style={styles.cardTitle}>Colis</Text>
                     </View>
 
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Catégorie</Text>
-                      <Text style={styles.value}>{parcel.type || '-'}</Text>
-                    </View>
+              {parcels.map((parcel, index) => (
+                        <View key={index} style={{ marginBottom: 12 }}>
+                          
+                          <Text style={{ fontWeight: '600', marginBottom: 4 }}>
+                            Colis {index + 1}
+                          </Text>
 
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Poids</Text>
-                      <Text style={styles.value}>{parcel.weightKg || '-'} kg</Text>
-                    </View>
+                          <View style={styles.row}>
+                            <Text style={styles.label}>Catégorie</Text>
+                            <Text style={styles.value}>{parcel.type || '-'}</Text>
+                          </View>
 
-                    <View style={styles.row}>
-                      <Text style={styles.label}>Dimensions</Text>
-                      <Text style={styles.value}>
-                        {parcel.length || '-'} × {parcel.width || '-'} × {parcel.height || '-'} cm
-                      </Text>
-                    </View>
+                          <View style={styles.row}>
+                            <Text style={styles.label}>Poids</Text>
+                            <Text style={styles.value}>{parcel.weightKg || '-'} kg</Text>
+                          </View>
+
+                        </View>
+                      ))}
+
+                    
                   </View>
 
                   {/* ADDRESSES */}
@@ -507,63 +545,24 @@ console.log("FINAL RECIPIENT:", {
 
                     <Text style={styles.subSection}>Collecte (France)</Text>
                     <Text style={styles.value}>
-                      123 Rue de la République, Paris 75001
+                      Nantes
                     </Text>
 
                     <View style={{ height: 12 }} />
 
                     <Text style={styles.subSection}>Livraison (Tunisie)</Text>
                     <Text style={styles.value}>
-                      {recipient.street || recipient.city || recipient.postalCode
-                        ? `${recipient.street}, ${recipient.city} ${recipient.postalCode}`
+                      {recipient.street
+                        ? `${recipient.street}`
                         : '-'}
                     </Text>
                     <Text style={styles.value}>{recipient.phoneNumber || '-'}</Text>
                   </View>
 
-                  {/* PAYMENT */}
-                  <View style={styles.card}>
-                    <View style={styles.sectionHeader}>
-                      <Feather name="credit-card" size={18} color="#6B7280" />
-                      <Text style={styles.cardTitle}>Mode de paiement</Text>
-                    </View>
-
-                   
-                     {['PICKUP', 'DELIVERY'].map((method) => (
-                        <TouchableOpacity
-                          key={method}
-                          onPress={() => setPaymentMethod(method as 'PICKUP' | 'DELIVERY')}
-                          style={[
-                            styles.paymentRow,
-                            paymentMethod === method && styles.paymentSelected,
-                          ]}
-                          activeOpacity={0.8}
-                        >
-                          <View style={styles.radioCircle}>
-                            {paymentMethod === method && <View style={styles.radioDot} />}
-                          </View>
-
-                          <View>
-                            <Text style={styles.paymentTitle}>
-                              {method === 'PICKUP'
-                                ? 'Espèces à la collecte (France)'
-                                : 'Espèces à la livraison (Tunisie)'}
-                            </Text>
-
-                            <Text style={styles.paymentSubtitle}>
-                              {method === 'PICKUP'
-                                ? 'Paiement en France lors de la collecte'
-                                : 'Paiement en Tunisie lors de la livraison'}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                  </View>
-
                   {/* PRICE */}
                   <View style={styles.priceCard}>
                     <Text style={styles.priceLabel}>Prix total</Text>
-                    <Text style={styles.priceValue}>599€</Text>
+                    <Text style={styles.priceValue}>299€</Text>
                   </View>
 
                 </View>
@@ -591,7 +590,31 @@ console.log("FINAL RECIPIENT:", {
                 {step < 3 ? (
                   <TouchableOpacity
                     style={styles.nextButton}
-                    onPress={() => setStep(step + 1)}
+                    
+                    onPress={() => {
+                      setShowErrors(true);
+
+                      if (step === 1) {
+                        const isValid = parcels.every(
+                          (p) => p.type && p.description && p.weightKg
+                        );
+
+                        if (!isValid) return;
+                      }
+
+                      if (step === 2) {
+                        const isValid =
+                          recipient.fullName &&
+                          recipient.phoneNumber &&
+                          recipient.street;
+
+                        if (!isValid) return;
+                      }
+
+                      setShowErrors(false); // reset for next step
+                      setStep(step + 1);
+                    }}
+
                   >
                     <Text style={styles.nextText}>Suivant</Text>
                   </TouchableOpacity>
@@ -851,17 +874,6 @@ addressSubtitle: {
 half: {
   flex: 1,
 },
-paymentOption: {
-  flexDirection: 'row',
-  gap: 12,
-  alignItems: 'center',
-  padding: 14,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  borderRadius: 12,
-  marginBottom: 10,
-},
-
 radioCircle: {
   width: 18,
   height: 18,
@@ -879,10 +891,6 @@ radioDot: {
   backgroundColor: '#2563EB',
 },
 
-paymentTitle: {
-  fontSize: 14,
-  fontWeight: '600',
-},
 
 sectionRecapTitle: {
   fontSize: 14,
@@ -944,6 +952,7 @@ nextButton: {
   paddingVertical: 10,
   paddingHorizontal: 20,
   borderRadius: 8,
+  marginTop:20,
 },
 
 nextText: {
@@ -1005,17 +1014,6 @@ card: {
     fontWeight: '500',
   },
 
-  paymentCard: {
-    backgroundColor: '#f1f3f5',
-    padding: 12,
-    borderRadius: 10,
-  },
-
-  paymentSubtitle: {
-    fontSize: 12,
-    color: '#777',
-    marginTop: 4,
-  },
 
   priceCard: {
     backgroundColor: '#fff',
@@ -1047,21 +1045,6 @@ card: {
   marginBottom: 10,
 },
 
-paymentRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 12,
-  padding: 12,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  borderRadius: 10,
-  marginBottom: 10,
-},
-
-paymentSelected: {
-  borderColor: '#2563EB',
-  backgroundColor: '#EFF6FF',
-},
 toast: {
   position: 'absolute',
   top: 80,
@@ -1078,5 +1061,10 @@ toastText: {
   color: '#fff',
   textAlign: 'center',
   fontWeight: '600',
+},
+validationText: {
+  color: '#DC2626',
+  fontSize: 12,
+  marginTop: 4,
 },
 });
