@@ -3,16 +3,17 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../scripts/context/AuthContext';
+import { getGoogleUser, clearGoogleUser } from '../../app/utils/tokenStorage';
 
 export default function RoleSelection() {
     const router = useRouter();
     const { login } = useAuth();
 
     const handleSelectRole = async (role: "SENDER" | "TRANSPORTER") => {
-        const googleUserRaw = localStorage.getItem("googleUser");
+        const googleUser = await getGoogleUser();
 
         // NORMAL FLOW
-        if (!googleUserRaw) {
+        if (!googleUser) {
             if (role === "SENDER") {
                 router.replace("/(auth)/register-sender");
             } else {
@@ -22,7 +23,6 @@ export default function RoleSelection() {
         }
 
         // GOOGLE FLOW
-        const googleUser = JSON.parse(googleUserRaw);
 
         try {
             const response = await fetch(
@@ -47,7 +47,7 @@ export default function RoleSelection() {
             }
 
             login(data);
-            localStorage.removeItem("googleUser");
+            await clearGoogleUser();
 
             if (role === "SENDER") {
                 router.replace("/(sender)/search");

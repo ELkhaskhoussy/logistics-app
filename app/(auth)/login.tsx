@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
+import { saveGoogleUser } from '../../app/utils/tokenStorage';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -77,15 +78,12 @@ export default function LoginScreen() {
             const data = await response.json();
 
             if (data.needsRoleSelection) {
-                localStorage.setItem(
-                    "googleUser",
-                    JSON.stringify({
-                        email: data.email,
-                        firstName: data.firstName,
-                        lastName: data.lastName,
-                        imageUrl: data.imageUrl,
-                    })
-                );
+                await saveGoogleUser({
+                    email: data.email,
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    imageUrl: data.imageUrl,
+                });
                 router.replace("/(role-selection)");
                 return;
             }
