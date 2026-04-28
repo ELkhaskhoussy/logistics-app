@@ -268,10 +268,13 @@ export default function SearchScreen() {
         onPress={() => {
           if (!trip.transporterId) return;
 
-          router.push({
-            pathname: "/transporter-details/[id]",
-            params: { id: trip.transporterId },
-          });
+         router.push({
+          pathname: "/transporter-details/[id]",
+          params: {
+            id: String(trip.transporterId),
+            tripId: String(trip.id),
+          },
+        });
         }}
       >
         {/* ROUTE */}
