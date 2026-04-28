@@ -97,15 +97,31 @@ export interface UpdateTransporterProfileRequest {
 // Trip Types
 // ==========================================
 
+export interface CollectionStop {
+    city: string;
+    fullAddress?: string;
+    stopTime?: string;
+}
+
 export interface Trip {
     id: string;
     transporterId: number;
     departureCity: string;
     arrivalCity: string;
-    departureDate: string;
-    availableWeight: number;
+    // Legacy field (kept for add-trip compatibility)
+    departureDate?: string;
+    availableWeight?: number;
+    // Backend entity fields
+    departureTime?: string;
+    arrivalTime?: string;
+    totalCapacityKg?: number;
+    availableCapacityKg?: number;
     pricePerKg: number;
     status: string;
+    collectionStops?: CollectionStop[];
+    currentStopIndex?: number;
+    confirmedBookingsCount?: number;
+    reservationDemandsCount?: number;
 }
 
 export interface CreateTripRequest {
@@ -138,12 +154,31 @@ export interface SearchTripsParams {
 // Booking Types
 // ==========================================
 
+export interface ParcelResponse {
+    id: number;
+    type: string;
+    description?: string;
+    weightKg: number;
+    dimensions?: string;
+    quantity?: number;
+    quantityLabel?: string;
+}
+
+export interface RecipientResponse {
+    id: number;
+    fullName: string;
+    phoneNumber?: string;
+    tunisiaAddress?: string;
+}
+
 export interface Booking {
     id: string;
     senderId: number;
     tripId: string;
     status: string;
     createdAt: string;
+    parcels?: ParcelResponse[];
+    recipient?: RecipientResponse;
 }
 
 export interface CreateBookingRequest {

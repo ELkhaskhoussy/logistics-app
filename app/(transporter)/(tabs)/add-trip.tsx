@@ -15,8 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { createTrip } from '../services/trip';
-import { getUserId } from '../utils/tokenStorage';
+import { createTrip } from '../../services/trip';
+import { getUserId } from '../../utils/tokenStorage';
 
 type StopItem = {
   address: string;

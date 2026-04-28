@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { getToken, getUserRole, getUserId, saveAuthData, clearAuthData } from "../../app/utils/tokenStorage";
 
 const AuthContext = createContext();
 
@@ -9,34 +10,47 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("auth_token");
-    const storedRole = localStorage.getItem("user_role");
-    const storedUserId = localStorage.getItem("user_id");
+    const loadAuthData = async () => {
+      try {
+        const storedToken = await getToken();
+        const storedRole = await getUserRole();
+        const storedUserId = await getUserId();
 
-    if (storedToken) {
-      setToken(storedToken);
-      setRole(storedRole);
-      setUserId(storedUserId);
-    }
+        if (storedToken) {
+          setToken(storedToken);
+          setRole(storedRole);
+          setUserId(storedUserId);
+        }
+      } catch (error) {
+        console.error("Failed to load auth data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setLoading(false);
+    loadAuthData();
   }, []);
 
-  const login = (data) => {
-    localStorage.setItem("auth_token", data.token);
-    localStorage.setItem("user_role", data.userRole);
-    localStorage.setItem("user_id", data.userId);
-
-    setToken(data.token);
-    setRole(data.userRole);
-    setUserId(data.userId);
+  const login = async (data) => {
+    try {
+      await saveAuthData(data.token, data.userRole, data.userId);
+      setToken(data.token);
+      setRole(data.userRole);
+      setUserId(data.userId);
+    } catch (error) {
+      console.error("Failed to login", error);
+    }
   };
 
-  const logout = () => {
-    localStorage.clear();
-    setToken(null);
-    setRole(null);
-    setUserId(null);
+  const logout = async () => {
+    try {
+      await clearAuthData();
+      setToken(null);
+      setRole(null);
+      setUserId(null);
+    } catch (error) {
+      console.error("Failed to logout", error);
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useEffect, useState, useCallback } from 'react';
-import { apiClient } from '../networking/client';
+import { apiClient } from '../../networking/client';
 
 import {
   ActivityIndicator,
@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import { getToken, getUserId } from '../utils/tokenStorage';
+import { getToken, getUserId } from '../../utils/tokenStorage';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -90,7 +90,12 @@ export default function DashboardScreen() {
   };
 
   const renderTrip = (trip: any) => (
-    <View key={trip.id} style={styles.tripCard}>
+    <TouchableOpacity
+      key={trip.id}
+      style={styles.tripCard}
+      activeOpacity={0.7}
+      onPress={() => router.push({ pathname: '/(transporter)/trip-details', params: { tripId: trip.id } } as any)}
+    >
       <View style={styles.tripCardContent}>
         
         {/* ROUTE */}
@@ -125,13 +130,16 @@ export default function DashboardScreen() {
 
         {/* FOOTER */}
         <View style={styles.tripFooter}>
-          <Text style={styles.metaText}>
-            {trip.availableCapacityKg} kg • €{trip.pricePerKg}/kg
-          </Text>
+          <View style={styles.tripFooterRow}>
+            <Text style={styles.metaText}>
+              {trip.availableCapacityKg} kg • €{trip.pricePerKg}/kg
+            </Text>
+            <Feather name="chevron-right" size={18} color="#9CA3AF" />
+          </View>
         </View>
 
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -204,7 +212,7 @@ export default function DashboardScreen() {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/(transporter)/add-trip' as any)}
+        onPress={() => router.push('/(transporter)/(tabs)/add-trip' as any)}
       >
         <Feather name="plus" size={24} color="#fff" />
       </TouchableOpacity>
@@ -327,6 +335,12 @@ const styles = StyleSheet.create({
 
   tripFooter: {
     marginTop: 6,
+  },
+
+  tripFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 
   metaText: {
