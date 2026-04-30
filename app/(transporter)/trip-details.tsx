@@ -4,6 +4,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState, useEffect } from 'react';
 import { getTripById } from '../services/trip';
 import ReservationDemandsModal from './components/ReservationDemandsModal';
+import { getConfirmedBookingsByTrip } from '../services/booking';
+import ConfirmedBookingsModal from './components/ConfirmedBookingsModal';
 
 import {
   ActivityIndicator,
@@ -39,26 +41,8 @@ const formatDate = (value: string | undefined) => {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── MOCK DATA — all display data except capacity comes from here ──
-const MOCK_TRIP = {
-  id: 'mock-trip-001',
-  transporterId: 28,
-  departureCity: 'Nantes',
-  arrivalCity: 'Tunis',
-  departureTime: '2026-04-08T08:00:00',
-  arrivalTime: '2026-04-10T18:00:00',
-  totalCapacityKg: 750,
-  availableCapacityKg: 262,
-  pricePerKg: 5.5,
-  status: 'IN_TRANSIT',
-  collectionStops: [
-    { city: 'Bizerte', stopTime: '2026-04-11T10:00:00' },
-    { city: 'Sousse', stopTime: '2026-04-12T14:00:00' },
-  ],
-  confirmedBookingsCount: 12,
-  reservationDemandsCount: 15,
-  currentStopIndex: 1,
-};
+
+
 
 // ═════════════════════════════════════════════════════════════════════
 //   TripDetailsScreen
@@ -67,8 +51,10 @@ export default function TripDetailsScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
 
-  // ─── All display data comes from MOCK (dates, stops, timeline, status) ──
-  const trip = MOCK_TRIP;
+const [confirmedBookingsCount, setConfirmedBookingsCount] = useState(0);
+
+
+  const [trip, setTrip] = useState<any>(null);
 
   // ─── Only capacity fields are live from the backend ──────────────
   const [liveCapacity, setLiveCapacity] = useState<{
@@ -77,12 +63,15 @@ export default function TripDetailsScreen() {
   } | null>(null);
 
   // ─── Modal state ─────────────────────────────────────────────────
+  const [showConfirmedModal, setShowConfirmedModal] = useState(false);
+  
   const [showDemandsModal, setShowDemandsModal] = useState(false);
 
   useEffect(() => {
     if (!tripId) return;
     getTripById(tripId)
       .then((data) => {
+         setTrip(data); 
         if (data.totalCapacityKg !== undefined && data.availableCapacityKg !== undefined) {
           setLiveCapacity({
             totalCapacityKg: data.totalCapacityKg,
@@ -96,13 +85,26 @@ export default function TripDetailsScreen() {
       });
   }, [tripId]);
 
+useEffect(() => {
+  if (!tripId) return;
+
+  getConfirmedBookingsByTrip(tripId)
+    .then((data) => {
+      setConfirmedBookingsCount(data.length);
+    })
+    .catch((err) => {
+      console.warn('Failed to fetch confirmed bookings:', err);
+    });
+}, [tripId]);
+
   // ─── Derived capacity — live if available, mock otherwise ─────────
   const capacityInfo = useMemo(() => {
-    const totalKg = liveCapacity?.totalCapacityKg ?? trip.totalCapacityKg;
-    const availableKg = liveCapacity?.availableCapacityKg ?? trip.availableCapacityKg;
+   const totalKg = liveCapacity?.totalCapacityKg ?? trip?.totalCapacityKg ?? 0;
+  const availableKg = liveCapacity?.availableCapacityKg ?? trip?.availableCapacityKg ?? 0;
     // TODO: Replace usedKg with sum of parcel weights from booking-service when available
     const usedKg = totalKg - availableKg;
     const percentage = totalKg > 0 ? Math.round((usedKg / totalKg) * 100) : 0;
+    
     return { usedKg, totalKg, percentage };
   }, [liveCapacity, trip]);
 
@@ -120,7 +122,7 @@ export default function TripDetailsScreen() {
 
     // Collection stops
     if (trip.collectionStops?.length) {
-      trip.collectionStops.forEach((s) => {
+      trip.collectionStops.forEach((s: CollectionStop) => {
         stops.push({
           city: s.city,
           date: formatDate(s.stopTime),
@@ -145,7 +147,7 @@ export default function TripDetailsScreen() {
       // Find the next upcoming stop
       const allDates = [
         trip.departureTime,
-        ...(trip.collectionStops?.map((s) => s.stopTime) || []),
+        ...(trip.collectionStops?.map((s: CollectionStop) => s.stopTime) || []),
         trip.arrivalTime,
       ];
       for (let i = 0; i < allDates.length; i++) {
@@ -165,10 +167,17 @@ export default function TripDetailsScreen() {
     return stops;
   }, [trip]);
 
-  const confirmedBookings = trip?.confirmedBookingsCount ?? 12;
+  const confirmedBookings = confirmedBookingsCount;
   const reservationDemands = trip?.reservationDemandsCount ?? 15;
   const currentStopName = timelineStops.find((s) => s.isCurrent)?.city || trip?.departureCity || '—';
 
+  if (!trip) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" />
+    </View>
+  );
+}
 
   // ═══════════════════════════════════════════════════════════════════
   //   RENDER
@@ -314,6 +323,7 @@ export default function TripDetailsScreen() {
             <TouchableOpacity
               style={styles.manageBookingsButton}
               activeOpacity={0.8}
+              onPress={() => setShowConfirmedModal(true)}
             >
               <View style={styles.manageBookingsContent}>
                 <View style={styles.manageBookingsIconWrap}>
@@ -367,6 +377,13 @@ export default function TripDetailsScreen() {
         totalDemands={reservationDemands}
         onClose={() => setShowDemandsModal(false)}
       />
+
+
+      <ConfirmedBookingsModal
+      visible={showConfirmedModal}
+      onClose={() => setShowConfirmedModal(false)}
+      tripId={tripId ?? ''}
+    />
     </View>
   );
 }
