@@ -22,7 +22,7 @@ export const getPendingDemandsByTrip = async (tripId: string): Promise<Booking[]
 // ── Update booking status (Accept → CONFIRMED | Decline → CANCELLED) ─
 export const updateBookingStatus = async (
     bookingId: string,
-    status: 'CONFIRMED' | 'CANCELLED' | 'DELIVERED'
+    status: 'CONFIRMED' | 'CANCELLED' | 'DELIVERED' | 'NOT_DELIVERED'
 ): Promise<Booking> => {
     console.log(`[BOOKING] Updating booking ${bookingId} → ${status}`);
     const response = await apiClient.put<Booking>(`${BASE}/${bookingId}/status`, { status });

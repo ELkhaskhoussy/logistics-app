@@ -6,6 +6,7 @@ import { getTripById } from '../services/trip';
 import ReservationDemandsModal from './components/ReservationDemandsModal';
 import { getConfirmedBookingsByTrip } from '../services/booking';
 import ConfirmedBookingsModal from './components/ConfirmedBookingsModal';
+import StopSelectorModal from "./components/StopSelectorModal";
 
 import {
   ActivityIndicator,
@@ -53,6 +54,9 @@ export default function TripDetailsScreen() {
 
 const [confirmedBookingsCount, setConfirmedBookingsCount] = useState(0);
 
+const [currentStopIndex, setCurrentStopIndex] = useState(0);
+
+const [isStopModalVisible, setIsStopModalVisible] = useState(false);
 
   const [trip, setTrip] = useState<any>(null);
 
@@ -80,7 +84,6 @@ const [confirmedBookingsCount, setConfirmedBookingsCount] = useState(0);
         }
       })
       .catch((e) => {
-        // Silent fallback — mock capacity values will be used
         console.warn('[TripDetails] Could not fetch live capacity, using mock values:', e?.message);
       });
   }, [tripId]);
@@ -97,6 +100,12 @@ useEffect(() => {
     });
 }, [tripId]);
 
+useEffect(() => {
+  if (trip?.currentStopIndex !== undefined) {
+    setCurrentStopIndex(trip.currentStopIndex);
+  }
+}, [trip]);
+
   // ─── Derived capacity — live if available, mock otherwise ─────────
   const capacityInfo = useMemo(() => {
    const totalKg = liveCapacity?.totalCapacityKg ?? trip?.totalCapacityKg ?? 0;
@@ -107,6 +116,7 @@ useEffect(() => {
     
     return { usedKg, totalKg, percentage };
   }, [liveCapacity, trip]);
+
 
   // Build timeline from departure → stops → arrival
   const timelineStops = useMemo(() => {
@@ -121,15 +131,21 @@ useEffect(() => {
     });
 
     // Collection stops
-    if (trip.collectionStops?.length) {
-      trip.collectionStops.forEach((s: CollectionStop) => {
+      if (trip.collectionStops?.length) {
+    trip.collectionStops.forEach((s:any) => {
+      // skip duplicates (departure / arrival)
+      if (
+        s.city !== trip.departureCity &&
+        s.city !== trip.arrivalCity
+      ) {
         stops.push({
           city: s.city,
           date: formatDate(s.stopTime),
           isCurrent: false,
         });
-      });
-    }
+      }
+    });
+  }
 
     // Arrival
     stops.push({
@@ -139,36 +155,15 @@ useEffect(() => {
     });
 
     // Determine current stop based on dates
-    const now = new Date();
-    let currentIdx = 0;
-    if (trip.currentStopIndex !== undefined) {
-      currentIdx = trip.currentStopIndex;
-    } else {
-      // Find the next upcoming stop
-      const allDates = [
-        trip.departureTime,
-        ...(trip.collectionStops?.map((s: CollectionStop) => s.stopTime) || []),
-        trip.arrivalTime,
-      ];
-      for (let i = 0; i < allDates.length; i++) {
-        const d = allDates[i];
-        if (d && new Date(d) > now) {
-          currentIdx = Math.max(0, i - 1);
-          break;
-        }
-        if (i === allDates.length - 1) {
-          currentIdx = i; // all in the past
-        }
-      }
-    }
+    let currentIdx = currentStopIndex;
 
     if (stops[currentIdx]) stops[currentIdx].isCurrent = true;
 
     return stops;
-  }, [trip]);
+ }, [trip, currentStopIndex]);
 
   const confirmedBookings = confirmedBookingsCount;
-  const reservationDemands = trip?.reservationDemandsCount ?? 15;
+  const reservationDemands = trip?.reservationDemandsCount ?? 0;
   const currentStopName = timelineStops.find((s) => s.isCurrent)?.city || trip?.departureCity || '—';
 
   if (!trip) {
@@ -178,7 +173,11 @@ useEffect(() => {
     </View>
   );
 }
-
+    const modalStops = timelineStops.map((stop, index) => ({
+      id: index.toString(),
+      city: stop.city,
+    }));
+    
   // ═══════════════════════════════════════════════════════════════════
   //   RENDER
   // ═══════════════════════════════════════════════════════════════════
@@ -340,10 +339,10 @@ useEffect(() => {
           <View style={[styles.card, styles.bottomCardHalf]}>
             <Text style={styles.cardTitle}>Trip Actions</Text>
 
-            <TouchableOpacity
-              style={styles.updateStatusButton}
-              activeOpacity={0.8}
-            >
+             <TouchableOpacity
+                  style={styles.updateStatusButton}
+                 onPress={() => setIsStopModalVisible(true)}
+                >
               <Feather name="navigation" size={16} color="#FFFFFF" />
               <Text style={styles.updateStatusText} numberOfLines={2}>
                 At {currentStopName} - Update Trip Status
@@ -384,6 +383,17 @@ useEffect(() => {
       onClose={() => setShowConfirmedModal(false)}
       tripId={tripId ?? ''}
     />
+
+<StopSelectorModal
+  visible={isStopModalVisible}
+  onClose={() => setIsStopModalVisible(false)}
+  stops={modalStops}
+  selectedIndex={currentStopIndex}
+  onSelect={(index) => {
+    setCurrentStopIndex(index);
+    setIsStopModalVisible(false);
+  }}
+/>
     </View>
   );
 }

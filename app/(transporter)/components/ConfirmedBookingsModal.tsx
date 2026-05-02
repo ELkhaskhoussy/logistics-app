@@ -44,18 +44,20 @@ export default function ConfirmedBookingsModal({
       setLoading(false);
     });
 }, [visible, tripId]);
-
-const handleMarkDelivered = async (booking: Booking) => {
+const handleStatusChange = async (
+  booking: Booking,
+  newStatus: 'DELIVERED' | 'NOT_DELIVERED'
+) => {
   try {
-    await updateBookingStatus(booking.id, 'DELIVERED');
+    await updateBookingStatus(booking.id, newStatus);
 
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === booking.id ? { ...b, status: 'DELIVERED' } : b
+    setBookings(prev =>
+      prev.map(b =>
+        b.id === booking.id ? { ...b, status: newStatus } : b
       )
     );
   } catch (e) {
-    console.error('Failed to mark delivered', e);
+    console.error('Failed to update status', e);
   }
 };
 
@@ -135,22 +137,44 @@ const handleMarkDelivered = async (booking: Booking) => {
             {totalWeight} kg
           </Text>
 
-        <View style={{ flex: 1.2, alignItems: 'flex-end' }}>
-            {booking.status === 'DELIVERED' ? (
-                <View style={s.deliveredBadge}>
-                <Text style={s.deliveredText}>Livré</Text>
-                </View>
-            ) : (
-                <TouchableOpacity
-                style={s.deliverButton}
-                onPress={() => handleMarkDelivered(booking)}
-                activeOpacity={0.7}
-                >
-                <Text style={s.deliverButtonText}>Marquer comme livré</Text>
-                </TouchableOpacity>
-            )}
+         <View style={s.statusContainer}>
+  <TouchableOpacity
+    style={[
+      s.segment,
+      booking.status === 'DELIVERED' && s.segmentActive
+    ]}
+    onPress={() => handleStatusChange(booking, 'DELIVERED')}
+  >
+    <Text
+      style={[
+        s.segmentText,
+        booking.status === 'DELIVERED' && s.segmentTextActive
+      ]}
+    >
+      Livré
+    </Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity
+    style={[
+      s.segment,
+      booking.status === 'NOT_DELIVERED' && s.segmentActive
+    ]}
+    onPress={() => handleStatusChange(booking, 'NOT_DELIVERED')}
+  >
+    <Text
+      style={[
+        s.segmentText,
+        booking.status === 'NOT_DELIVERED' && s.segmentTextActive
+      ]}
+    >
+      Non livré
+    </Text>
+  </TouchableOpacity>
+</View>
+              
             </View>
-            </View>
+           
                     );
                     })}
                 </View>
@@ -310,50 +334,33 @@ cellName: {
   fontSize: 12,
   fontWeight: '600',
   color: '#111827',
+   maxWidth: 100,
 },
-statusButton: {
+
+statusContainer: {
+  flexDirection: 'row',
+  backgroundColor: '#E5E7EB',
+  borderRadius: 20,
+  padding: 3,
+},
+
+segment: {
   paddingVertical: 6,
-  borderRadius: 6,
-  alignItems: 'center',
+  paddingHorizontal: 12,
+  borderRadius: 16,
 },
 
-statusText: {
-  color: '#FFF',
-  fontSize: 11,
-  fontWeight: '600',
-},
-
-delivered: {
-  backgroundColor: '#16A34A',
-},
-
-notDelivered: {
-  backgroundColor: '#EF4444',
-},
-deliverButton: {
+segmentActive: {
   backgroundColor: '#2563EB',
-  paddingVertical: 6,
-    paddingHorizontal: 10, 
-  borderRadius: 6,
-  alignItems: 'center',
 },
 
-deliverButtonText: {
-  color: '#FFF',
+segmentText: {
   fontSize: 11,
-  fontWeight: '600',
+  color: '#374151',
 },
 
-deliveredBadge: {
-  backgroundColor: '#16A34A',
-  paddingVertical: 6,
-  borderRadius: 6,
-  alignItems: 'center',
-},
-
-deliveredText: {
-  color: '#FFF',
-  fontSize: 11,
+segmentTextActive: {
+  color: '#FFFFFF',
   fontWeight: '600',
 },
 });
