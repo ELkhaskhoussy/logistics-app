@@ -223,12 +223,13 @@ export default function SearchScreen() {
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={styles.inputWrapper}
+                  style={styles.datePicker}
                   onPress={() => setShowCalendar(true)}
+                  activeOpacity={0.7}
                 >
-                  <Feather name="calendar" size={16} color="#6B7280" style={styles.inputIcon} />
-                  <Text style={styles.dateText}>
-                    {searchData.date || `e.g. ${todayExample}`}
+                  <Feather name="calendar" size={16} color="#6B7280" />
+                  <Text style={[styles.datePickerText, !searchData.date && styles.datePickerPlaceholder]}>
+                    {searchData.date || `Select a date (e.g. ${todayExample})`}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -312,8 +313,29 @@ export default function SearchScreen() {
   })}
       </ScrollView>
 
+      {/* Native date picker — renders when showCalendar is true */}
+      {Platform.OS !== "web" && showCalendar && (
+        <DateTimePicker
+          value={selectedDate ?? new Date()}
+          mode="date"
+          display="default"
+          minimumDate={new Date()}
+          onChange={(event: any, date?: Date) => {
+            setShowCalendar(false);
+            if (date) {
+              setSelectedDate(date);
+              setSearchData((prev) => ({
+                ...prev,
+                date: formatLocalDate(date),
+              }));
+            }
+          }}
+        />
+      )}
+
       <Toast />
     </View>
+
   );
 }
 
@@ -420,6 +442,28 @@ stopText: {
   capacity: { marginTop: 8, fontWeight: "600" },
 
   webDateWrapper: { position: "relative" },
+
+  datePicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    height: 48,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+  },
+
+  datePickerText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111827",
+  },
+
+  datePickerPlaceholder: {
+    color: "#9CA3AF",
+  },
 
   webCalendarIcon: { position: "absolute", left: 10, top: 16 },
 });

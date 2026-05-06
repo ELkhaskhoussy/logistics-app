@@ -33,13 +33,6 @@ export default function SenderLayout() {
                     ),
                 }}
             />
-            {/* Hide results from tabs - now integrated in search screen */}
-            <Tabs.Screen
-                name="results"
-                options={{
-                    href: null,
-                }}
-            />  
         </Tabs>
     );
 }
