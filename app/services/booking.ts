@@ -37,3 +37,8 @@ export const getConfirmedBookingsByTrip = async (tripId: string): Promise<Bookin
     console.log('[BOOKING] ✅ Confirmed bookings fetched:', response.data.length);
     return response.data;
 };
+
+export const getPendingBookingsByTrip = async (tripId: string) => {
+  const response = await apiClient.get(`/bookings/trip/${tripId}/pending`);
+  return response.data;
+};

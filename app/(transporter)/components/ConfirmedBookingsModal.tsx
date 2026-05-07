@@ -286,14 +286,14 @@ headerCellName: {
 },
 
 headerCell: {
-  flex: 1,
+  flex: 1.2,
   fontSize: 12,
   fontWeight: '700',
   color: '#374151',
 },
 
 headerStatus: {
-  flex: 1.2,
+   width: 120,
   fontSize: 12,
   fontWeight: '700',
   color: '#374151',
@@ -340,13 +340,15 @@ cellName: {
 statusContainer: {
   flexDirection: 'row',
   backgroundColor: '#E5E7EB',
+  width: 120,
+  justifyContent: 'space-between',
   borderRadius: 20,
   padding: 3,
 },
 
 segment: {
   paddingVertical: 6,
-  paddingHorizontal: 12,
+  paddingHorizontal: 8,
   borderRadius: 16,
 },
 

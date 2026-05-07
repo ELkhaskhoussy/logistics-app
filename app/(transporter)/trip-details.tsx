@@ -4,7 +4,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState, useEffect } from 'react';
 import { getTripById } from '../services/trip';
 import ReservationDemandsModal from './components/ReservationDemandsModal';
-import { getConfirmedBookingsByTrip } from '../services/booking';
+import {
+  getConfirmedBookingsByTrip,
+  getPendingBookingsByTrip,
+} from '../services/booking';
 import ConfirmedBookingsModal from './components/ConfirmedBookingsModal';
 import StopSelectorModal from "./components/StopSelectorModal";
 
@@ -53,6 +56,8 @@ export default function TripDetailsScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
 
 const [confirmedBookingsCount, setConfirmedBookingsCount] = useState(0);
+
+const [reservationDemandsCount, setReservationDemandsCount] = useState(0);
 
 const [currentStopIndex, setCurrentStopIndex] = useState(0);
 
@@ -105,6 +110,17 @@ useEffect(() => {
     setCurrentStopIndex(trip.currentStopIndex);
   }
 }, [trip]);
+useEffect(() => {
+  if (!tripId) return;
+
+  getPendingBookingsByTrip(tripId)
+    .then((data) => {
+      setReservationDemandsCount(data.length);
+    })
+    .catch((err) => {
+      console.warn('Failed to fetch reservation demands:', err);
+    });
+}, [tripId]);
 
   // ─── Derived capacity — live if available, mock otherwise ─────────
   const capacityInfo = useMemo(() => {
@@ -163,7 +179,7 @@ useEffect(() => {
  }, [trip, currentStopIndex]);
 
   const confirmedBookings = confirmedBookingsCount;
-  const reservationDemands = trip?.reservationDemandsCount ?? 0;
+  const reservationDemands = reservationDemandsCount;
   const currentStopName = timelineStops.find((s) => s.isCurrent)?.city || trip?.departureCity || '—';
 
   if (!trip) {
