@@ -76,6 +76,20 @@ const [isStopModalVisible, setIsStopModalVisible] = useState(false);
   
   const [showDemandsModal, setShowDemandsModal] = useState(false);
 
+  const fetchBookingCounts = async () => {
+  if (!tripId) return;
+
+  try {
+    const confirmed = await getConfirmedBookingsByTrip(tripId);
+    setConfirmedBookingsCount(confirmed.length);
+
+    const pending = await getPendingBookingsByTrip(tripId);
+    setReservationDemandsCount(pending.length);
+  } catch (err) {
+    console.warn('Failed to fetch booking counts:', err);
+  }
+};
+
   useEffect(() => {
     if (!tripId) return;
     getTripById(tripId)
@@ -94,15 +108,7 @@ const [isStopModalVisible, setIsStopModalVisible] = useState(false);
   }, [tripId]);
 
 useEffect(() => {
-  if (!tripId) return;
-
-  getConfirmedBookingsByTrip(tripId)
-    .then((data) => {
-      setConfirmedBookingsCount(data.length);
-    })
-    .catch((err) => {
-      console.warn('Failed to fetch confirmed bookings:', err);
-    });
+  fetchBookingCounts();
 }, [tripId]);
 
 useEffect(() => {
@@ -390,13 +396,19 @@ useEffect(() => {
         visible={showDemandsModal}
         tripId={tripId ?? ''}
         totalDemands={reservationDemands}
-        onClose={() => setShowDemandsModal(false)}
+        onClose={() => {
+        setShowDemandsModal(false);
+        fetchBookingCounts();
+      }}
       />
 
 
       <ConfirmedBookingsModal
       visible={showConfirmedModal}
-      onClose={() => setShowConfirmedModal(false)}
+      onClose={() => {
+      setShowConfirmedModal(false);
+      fetchBookingCounts();
+    }}
       tripId={tripId ?? ''}
     />
 
