@@ -1,0 +1,25 @@
+# Dependencies installed fresh inside the container
+node_modules
+
+# Expo local caches
+.expo
+dist
+
+# Git history
+.git
+.gitignore
+
+# Local env files — production values are set in the Dockerfile ENV block
+.env
+.env.dev
+.env.example
+
+# Editor / OS noise
+.vscode
+.DS_Store
+Thumbs.db
+
+# Docker files themselves (no need to copy into the image)
+Dockerfile
+.dockerignore
+# nginx.conf must NOT be listed here — Docker needs it for the COPY instruction

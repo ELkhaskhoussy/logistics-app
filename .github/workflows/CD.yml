@@ -1,0 +1,52 @@
+name: Deploy Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Docker Tag/Commit SHA to deploy'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: 84.46.254.94
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Navigate to frontend application directory
+            cd ~/logistics-app || exit 1
+
+            # Export variables
+            export TAG=${{ inputs.version }}
+            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+
+            # Login to Docker Hub
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            # Pull the specific frontend image version
+            docker pull ${DOCKER_USERNAME}/logistics-app-web:${TAG}
+
+            # Stop and remove the old container (if running)
+            docker stop logistics-app-web || true
+            docker rm   logistics-app-web || true
+
+            # Run the new container
+            # Maps host port 3000 → container port 80 (Nginx)
+            docker run -d \
+              --name logistics-app-web \
+              --restart unless-stopped \
+              -p 3000:80 \
+              ${DOCKER_USERNAME}/logistics-app-web:${TAG}
+
+            # Show running containers
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+            # Cleanup old dangling images
+            docker image prune -f

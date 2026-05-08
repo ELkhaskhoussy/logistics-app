@@ -11,7 +11,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "docker:build:dev": "docker build --build-arg API_URL=http://host.docker.internal:8080 --build-arg APP_ENV=development -t logistics-app-web-local .",
+    "docker:build:prod": "docker build -t logistics-app-web .",
+    "docker:dev": "npm run docker:build:dev && docker run -p 3000:80 logistics-app-web-local",
+    "docker:prod": "npm run docker:build:prod && docker run -p 3000:80 logistics-app-web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
