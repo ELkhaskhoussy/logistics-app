@@ -5,6 +5,15 @@ on:
     branches:
       - develop
       - prod
+  # Allows manual triggering from GitHub Actions UI:
+  # GitHub → Actions → "Frontend CI Pipeline" → Run workflow
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: false
+        default: 'develop'
+        type: string
 
 jobs:
   build-and-push:
