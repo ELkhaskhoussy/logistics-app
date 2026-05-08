@@ -22,10 +22,23 @@ export const getPendingDemandsByTrip = async (tripId: string): Promise<Booking[]
 // ── Update booking status (Accept → CONFIRMED | Decline → CANCELLED) ─
 export const updateBookingStatus = async (
     bookingId: string,
-    status: 'CONFIRMED' | 'CANCELLED'
+    status: 'CONFIRMED' | 'CANCELLED' | 'DELIVERED' | 'NOT_DELIVERED'
 ): Promise<Booking> => {
     console.log(`[BOOKING] Updating booking ${bookingId} → ${status}`);
     const response = await apiClient.put<Booking>(`${BASE}/${bookingId}/status`, { status });
     console.log('[BOOKING] ✅ Status updated:', response.data.status);
     return response.data;
+};
+
+// ── GET confirmed bookings for a trip ─────────────────────────────
+export const getConfirmedBookingsByTrip = async (tripId: string): Promise<Booking[]> => {
+    console.log('[BOOKING] Fetching confirmed bookings for trip:', tripId);
+    const response = await apiClient.get<Booking[]>(`${BASE}/trip/${tripId}/confirmed`);
+    console.log('[BOOKING] ✅ Confirmed bookings fetched:', response.data.length);
+    return response.data;
+};
+
+export const getPendingBookingsByTrip = async (tripId: string) => {
+  const response = await apiClient.get(`/bookings/trip/${tripId}/pending`);
+  return response.data;
 };

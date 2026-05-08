@@ -4,6 +4,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState, useEffect } from 'react';
 import { getTripById } from '../services/trip';
 import ReservationDemandsModal from './components/ReservationDemandsModal';
+import {
+  getConfirmedBookingsByTrip,
+  getPendingBookingsByTrip,
+} from '../services/booking';
+import ConfirmedBookingsModal from './components/ConfirmedBookingsModal';
+import StopSelectorModal from "./components/StopSelectorModal";
 
 import {
   ActivityIndicator,
@@ -39,26 +45,8 @@ const formatDate = (value: string | undefined) => {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── MOCK DATA — all display data except capacity comes from here ──
-const MOCK_TRIP = {
-  id: 'mock-trip-001',
-  transporterId: 28,
-  departureCity: 'Nantes',
-  arrivalCity: 'Tunis',
-  departureTime: '2026-04-08T08:00:00',
-  arrivalTime: '2026-04-10T18:00:00',
-  totalCapacityKg: 750,
-  availableCapacityKg: 262,
-  pricePerKg: 5.5,
-  status: 'IN_TRANSIT',
-  collectionStops: [
-    { city: 'Bizerte', stopTime: '2026-04-11T10:00:00' },
-    { city: 'Sousse', stopTime: '2026-04-12T14:00:00' },
-  ],
-  confirmedBookingsCount: 12,
-  reservationDemandsCount: 15,
-  currentStopIndex: 1,
-};
+
+
 
 // ═════════════════════════════════════════════════════════════════════
 //   TripDetailsScreen
@@ -67,8 +55,15 @@ export default function TripDetailsScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
 
-  // ─── All display data comes from MOCK (dates, stops, timeline, status) ──
-  const trip = MOCK_TRIP;
+const [confirmedBookingsCount, setConfirmedBookingsCount] = useState(0);
+
+const [reservationDemandsCount, setReservationDemandsCount] = useState(0);
+
+const [currentStopIndex, setCurrentStopIndex] = useState(0);
+
+const [isStopModalVisible, setIsStopModalVisible] = useState(false);
+
+  const [trip, setTrip] = useState<any>(null);
 
   // ─── Only capacity fields are live from the backend ──────────────
   const [liveCapacity, setLiveCapacity] = useState<{
@@ -77,12 +72,29 @@ export default function TripDetailsScreen() {
   } | null>(null);
 
   // ─── Modal state ─────────────────────────────────────────────────
+  const [showConfirmedModal, setShowConfirmedModal] = useState(false);
+  
   const [showDemandsModal, setShowDemandsModal] = useState(false);
+
+  const fetchBookingCounts = async () => {
+  if (!tripId) return;
+
+  try {
+    const confirmed = await getConfirmedBookingsByTrip(tripId);
+    setConfirmedBookingsCount(confirmed.length);
+
+    const pending = await getPendingBookingsByTrip(tripId);
+    setReservationDemandsCount(pending.length);
+  } catch (err) {
+    console.warn('Failed to fetch booking counts:', err);
+  }
+};
 
   useEffect(() => {
     if (!tripId) return;
     getTripById(tripId)
       .then((data) => {
+         setTrip(data); 
         if (data.totalCapacityKg !== undefined && data.availableCapacityKg !== undefined) {
           setLiveCapacity({
             totalCapacityKg: data.totalCapacityKg,
@@ -91,20 +103,42 @@ export default function TripDetailsScreen() {
         }
       })
       .catch((e) => {
-        // Silent fallback — mock capacity values will be used
         console.warn('[TripDetails] Could not fetch live capacity, using mock values:', e?.message);
       });
   }, [tripId]);
 
+useEffect(() => {
+  fetchBookingCounts();
+}, [tripId]);
+
+useEffect(() => {
+  if (trip?.currentStopIndex !== undefined) {
+    setCurrentStopIndex(trip.currentStopIndex);
+  }
+}, [trip]);
+useEffect(() => {
+  if (!tripId) return;
+
+  getPendingBookingsByTrip(tripId)
+    .then((data) => {
+      setReservationDemandsCount(data.length);
+    })
+    .catch((err) => {
+      console.warn('Failed to fetch reservation demands:', err);
+    });
+}, [tripId]);
+
   // ─── Derived capacity — live if available, mock otherwise ─────────
   const capacityInfo = useMemo(() => {
-    const totalKg = liveCapacity?.totalCapacityKg ?? trip.totalCapacityKg;
-    const availableKg = liveCapacity?.availableCapacityKg ?? trip.availableCapacityKg;
+   const totalKg = liveCapacity?.totalCapacityKg ?? trip?.totalCapacityKg ?? 0;
+  const availableKg = liveCapacity?.availableCapacityKg ?? trip?.availableCapacityKg ?? 0;
     // TODO: Replace usedKg with sum of parcel weights from booking-service when available
     const usedKg = totalKg - availableKg;
     const percentage = totalKg > 0 ? Math.round((usedKg / totalKg) * 100) : 0;
+    
     return { usedKg, totalKg, percentage };
   }, [liveCapacity, trip]);
+
 
   // Build timeline from departure → stops → arrival
   const timelineStops = useMemo(() => {
@@ -119,15 +153,21 @@ export default function TripDetailsScreen() {
     });
 
     // Collection stops
-    if (trip.collectionStops?.length) {
-      trip.collectionStops.forEach((s) => {
+      if (trip.collectionStops?.length) {
+    trip.collectionStops.forEach((s:any) => {
+      // skip duplicates (departure / arrival)
+      if (
+        s.city !== trip.departureCity &&
+        s.city !== trip.arrivalCity
+      ) {
         stops.push({
           city: s.city,
           date: formatDate(s.stopTime),
           isCurrent: false,
         });
-      });
-    }
+      }
+    });
+  }
 
     // Arrival
     stops.push({
@@ -137,39 +177,29 @@ export default function TripDetailsScreen() {
     });
 
     // Determine current stop based on dates
-    const now = new Date();
-    let currentIdx = 0;
-    if (trip.currentStopIndex !== undefined) {
-      currentIdx = trip.currentStopIndex;
-    } else {
-      // Find the next upcoming stop
-      const allDates = [
-        trip.departureTime,
-        ...(trip.collectionStops?.map((s) => s.stopTime) || []),
-        trip.arrivalTime,
-      ];
-      for (let i = 0; i < allDates.length; i++) {
-        const d = allDates[i];
-        if (d && new Date(d) > now) {
-          currentIdx = Math.max(0, i - 1);
-          break;
-        }
-        if (i === allDates.length - 1) {
-          currentIdx = i; // all in the past
-        }
-      }
-    }
+    let currentIdx = currentStopIndex;
 
     if (stops[currentIdx]) stops[currentIdx].isCurrent = true;
 
     return stops;
-  }, [trip]);
+ }, [trip, currentStopIndex]);
 
-  const confirmedBookings = trip?.confirmedBookingsCount ?? 12;
-  const reservationDemands = trip?.reservationDemandsCount ?? 15;
+  const confirmedBookings = confirmedBookingsCount;
+  const reservationDemands = reservationDemandsCount;
   const currentStopName = timelineStops.find((s) => s.isCurrent)?.city || trip?.departureCity || '—';
 
-
+  if (!trip) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" />
+    </View>
+  );
+}
+    const modalStops = timelineStops.map((stop, index) => ({
+      id: index.toString(),
+      city: stop.city,
+    }));
+    
   // ═══════════════════════════════════════════════════════════════════
   //   RENDER
   // ═══════════════════════════════════════════════════════════════════
@@ -314,6 +344,7 @@ export default function TripDetailsScreen() {
             <TouchableOpacity
               style={styles.manageBookingsButton}
               activeOpacity={0.8}
+              onPress={() => setShowConfirmedModal(true)}
             >
               <View style={styles.manageBookingsContent}>
                 <View style={styles.manageBookingsIconWrap}>
@@ -330,10 +361,10 @@ export default function TripDetailsScreen() {
           <View style={[styles.card, styles.bottomCardHalf]}>
             <Text style={styles.cardTitle}>Trip Actions</Text>
 
-            <TouchableOpacity
-              style={styles.updateStatusButton}
-              activeOpacity={0.8}
-            >
+             <TouchableOpacity
+                  style={styles.updateStatusButton}
+                 onPress={() => setIsStopModalVisible(true)}
+                >
               <Feather name="navigation" size={16} color="#FFFFFF" />
               <Text style={styles.updateStatusText} numberOfLines={2}>
                 At {currentStopName} - Update Trip Status
@@ -365,8 +396,32 @@ export default function TripDetailsScreen() {
         visible={showDemandsModal}
         tripId={tripId ?? ''}
         totalDemands={reservationDemands}
-        onClose={() => setShowDemandsModal(false)}
+        onClose={() => {
+        setShowDemandsModal(false);
+        fetchBookingCounts();
+      }}
       />
+
+
+      <ConfirmedBookingsModal
+      visible={showConfirmedModal}
+      onClose={() => {
+      setShowConfirmedModal(false);
+      fetchBookingCounts();
+    }}
+      tripId={tripId ?? ''}
+    />
+
+<StopSelectorModal
+  visible={isStopModalVisible}
+  onClose={() => setIsStopModalVisible(false)}
+  stops={modalStops}
+  selectedIndex={currentStopIndex}
+  onSelect={(index) => {
+    setCurrentStopIndex(index);
+    setIsStopModalVisible(false);
+  }}
+/>
     </View>
   );
 }
