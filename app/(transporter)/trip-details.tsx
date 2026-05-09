@@ -90,34 +90,49 @@ const [isStopModalVisible, setIsStopModalVisible] = useState(false);
   }
 };
 
-  useEffect(() => {
+  const fetchTripDetails = async () => {
     if (!tripId) return;
-    getTripById(tripId)
-      .then((data) => {
-         setTrip(data); 
-        if (data.totalCapacityKg !== undefined && data.availableCapacityKg !== undefined) {
-          setLiveCapacity({
-            totalCapacityKg: data.totalCapacityKg,
-            availableCapacityKg: data.availableCapacityKg,
-          });
-        }
-      })
-      .catch((e) => {
-        console.warn('[TripDetails] Could not fetch live capacity, using mock values:', e?.message);
-      });
-  }, [tripId]);
 
-useEffect(() => {
-  fetchBookingCounts();
-}, [tripId]);
+    try {
+      const data = await getTripById(tripId);
 
-useEffect(() => {
-  if (trip?.currentStopIndex !== undefined) {
-    setCurrentStopIndex(trip.currentStopIndex);
-  }
-}, [trip]);
-useEffect(() => {
-  if (!tripId) return;
+      setTrip(data);
+
+      if (
+        data.totalCapacityKg !== undefined &&
+        data.availableCapacityKg !== undefined
+      ) {
+        setLiveCapacity({
+          totalCapacityKg: data.totalCapacityKg,
+          availableCapacityKg: data.availableCapacityKg,
+        });
+      }
+
+    } catch (e) {
+      console.warn(
+        '[TripDetails] Could not fetch live capacity',
+        e
+      );
+    }
+  };
+
+    useEffect(() => {
+      fetchTripDetails();
+    }, [tripId]);
+
+
+    useEffect(() => {
+      fetchBookingCounts();
+    }, [tripId]);
+
+    useEffect(() => {
+      if (trip?.currentStopIndex !== undefined) {
+        setCurrentStopIndex(trip.currentStopIndex);
+      }
+    }, [trip]);
+
+    useEffect(() => {
+      if (!tripId) return;
 
   getPendingBookingsByTrip(tripId)
     .then((data) => {
@@ -396,6 +411,7 @@ useEffect(() => {
         visible={showDemandsModal}
         tripId={tripId ?? ''}
         totalDemands={reservationDemands}
+        onBookingConfirmed={fetchTripDetails}
         onClose={() => {
         setShowDemandsModal(false);
         fetchBookingCounts();

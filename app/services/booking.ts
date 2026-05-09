@@ -30,6 +30,29 @@ export const updateBookingStatus = async (
     return response.data;
 };
 
+export const confirmBooking = async (
+    bookingId: string,
+    data: {
+        parcels: {
+            id: number;
+            type: string;
+            weightKg: number;
+        }[];
+    }
+): Promise<Booking> => {
+
+    console.log('[BOOKING] Confirming booking:', bookingId);
+
+    const response = await apiClient.put<Booking>(
+        `${BASE}/${bookingId}/confirm`,
+        data
+    );
+
+    console.log('[BOOKING] ✅ Booking confirmed');
+
+    return response.data;
+};
+
 // ── GET confirmed bookings for a trip ─────────────────────────────
 export const getConfirmedBookingsByTrip = async (tripId: string): Promise<Booking[]> => {
     console.log('[BOOKING] Fetching confirmed bookings for trip:', tripId);
