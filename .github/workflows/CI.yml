@@ -44,10 +44,10 @@ jobs:
       - name: Set API URL for branch
         run: |
           if [ "${{ github.ref_name }}" = "prod" ]; then
-            echo "API_URL=http://84.46.254.94:8080" >> $GITHUB_ENV
+            echo "API_URL=/api" >> $GITHUB_ENV
             echo "APP_ENV=production" >> $GITHUB_ENV
           else
-            echo "API_URL=http://84.46.254.94:8080" >> $GITHUB_ENV
+            echo "API_URL=/api" >> $GITHUB_ENV
             echo "APP_ENV=development" >> $GITHUB_ENV
           fi
 

@@ -24,8 +24,8 @@ const ENV_MODE: 'DEV' | 'PROD' = 'DEV'; //  Change to 'PROD' before deployment!
  * Backend URLs for different environments
  */
 const BACKEND_URLS = {
-    DEV: 'http://localhost:8080',     // Your computer's LAN IP for local testing
-    PROD: 'http://84.46.254.94:8080',     // Live production server
+    DEV: 'http://localhost:8080',  // Local backend
+    PROD: '/api',                  // Nginx reverse proxy on production server
 };
 
 export const getApiBaseUrl = (): string => {

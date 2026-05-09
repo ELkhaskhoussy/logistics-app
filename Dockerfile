@@ -27,7 +27,7 @@ COPY . .
 #   NOTE: Use host.docker.internal — NOT localhost.
 #         Inside a container, localhost = the container itself, not your machine.
 #         host.docker.internal is Docker Desktop's built-in hostname for the host.
-ARG API_URL=http://84.46.254.94:8080
+ARG API_URL=/api
 ARG APP_ENV=production
 
 # Expose as ENV so Expo inlines them during `expo export`

@@ -17,11 +17,11 @@ export interface ApiConfig {
  */
 export const API_CONFIG: Record<Environment, ApiConfig> = {
     development: {
-         baseURL: 'http://localhost:8080' ,  // LAN IP for physical device testing
+        baseURL: 'http://localhost:8080',  // Local backend for web dev
         timeout: 15000,
     },
     production: {
-        baseURL: 'http://84.46.254.94:8080',  // Contabo production server
+        baseURL: '/api',  // Nginx reverse proxy — avoids CORS, no hardcoded IP
         timeout: 30000,
     },
 };
