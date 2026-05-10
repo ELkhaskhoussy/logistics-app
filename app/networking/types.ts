@@ -173,6 +173,7 @@ export interface RecipientResponse {
 
 export interface Booking {
     id: string;
+    senderName?: string;
     senderId: number;
     tripId: string;
     status: string;

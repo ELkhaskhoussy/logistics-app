@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useState, useEffect, useCallback } from 'react';
+import AcceptBookingModal from './AcceptBookingModal';
 import {
   ActivityIndicator,
   Modal,
@@ -10,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getPendingDemandsByTrip, updateBookingStatus } from '../../services/booking';
+import { getPendingDemandsByTrip, updateBookingStatus, confirmBooking } from '../../services/booking';
 import type { Booking, ParcelResponse } from '../../networking/types';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ function DemandCard({
   actionLoading,
 }: {
   booking: Booking;
-  onAccept: (id: string) => void;
+  onAccept: (booking: Booking) => void;
   onDecline: (id: string) => void;
   actionLoading: string | null;
 }) {
@@ -48,6 +49,8 @@ function DemandCard({
 
   const isActioning = actionLoading === booking.id;
 
+  
+
   return (
     <View style={s.card}>
       {/* ── Header */}
@@ -57,7 +60,9 @@ function DemandCard({
             <Text style={s.avatarText}>{String(booking.senderId).charAt(0).toUpperCase()}</Text>
           </View>
           <View>
-            <Text style={s.senderName}>Sender #{booking.senderId}</Text>
+            <Text style={s.senderName}>
+              {booking.senderName || `Sender #${booking.senderId}`}
+            </Text>
           </View>
         </View>
         <Text style={s.dateText}>
@@ -84,10 +89,7 @@ function DemandCard({
           <Text style={s.packageLabel}>Detailed Description: </Text>
           <Text style={s.packageValue}>{description}</Text>
         </View>
-        <View style={s.packageRow}>
-          <Text style={s.packageLabel}>Label: Quantity: </Text>
-          <Text style={s.packageValue}>{quantityLabel}</Text>
-        </View>
+
       </View>
 
       {/* ── Action buttons */}
@@ -96,7 +98,7 @@ function DemandCard({
           style={[s.acceptButton, isActioning && s.buttonDisabled]}
           activeOpacity={0.8}
           disabled={isActioning}
-          onPress={() => onAccept(booking.id)}
+         onPress={() => onAccept(booking)}
         >
           {isActioning ? (
             <ActivityIndicator size="small" color="#FFF" />
@@ -135,18 +137,25 @@ interface Props {
   tripId: string;
   totalDemands: number;
   onClose: () => void;
+  onBookingConfirmed: () => void;
 }
 
 export default function ReservationDemandsModal({
   visible,
   tripId,
   totalDemands,
+  onBookingConfirmed,
   onClose,
 }: Props) {
   const [demands, setDemands] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+
+const [acceptModalVisible, setAcceptModalVisible] =
+  useState(false);
 
   // ── Fetch demands when modal opens ────────────────────────────────
   const fetchDemands = useCallback(async () => {
@@ -198,7 +207,9 @@ export default function ReservationDemandsModal({
 
   const count = demands.length > 0 ? demands.length : totalDemands;
 
-  return (
+  
+   return (
+      <>
     <Modal
       visible={visible}
       animationType="slide"
@@ -256,7 +267,10 @@ export default function ReservationDemandsModal({
                   <DemandCard
                     key={d.id}
                     booking={d}
-                    onAccept={handleAccept}
+                    onAccept={(booking) => {
+                      setSelectedBooking(booking);
+                      setAcceptModalVisible(true);
+                    }}
                     onDecline={handleDecline}
                     actionLoading={actionLoading}
                   />
@@ -267,8 +281,35 @@ export default function ReservationDemandsModal({
           )}
         </View>
       </View>
+   
     </Modal>
-  );
+
+    <AcceptBookingModal
+      visible={acceptModalVisible}
+      booking={selectedBooking}
+      onClose={() => {
+        setAcceptModalVisible(false);
+        setSelectedBooking(null);
+      }}
+     onConfirm={async (data) => {
+      if (!selectedBooking) return;
+
+      console.log('UPDATED VALUES:', data);
+
+      await confirmBooking(
+      selectedBooking.id,
+      data
+    );
+      await onBookingConfirmed();
+
+      await fetchDemands();
+      setAcceptModalVisible(false);
+      setSelectedBooking(null);
+    }}
+    />
+  </>
+);
+
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────
@@ -427,7 +468,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#16A34A',
+    backgroundColor: '#2563EB',
     paddingVertical: 11,
     borderRadius: 10,
     minHeight: 44,
@@ -439,11 +480,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#EF4444',
+   backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
     paddingVertical: 11,
     borderRadius: 10,
     minHeight: 44,
   },
-  declineText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  declineText: { color: '#374151', fontSize: 14, fontWeight: '600' },
   buttonDisabled: { opacity: 0.6 },
 });
