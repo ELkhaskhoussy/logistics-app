@@ -1,18 +1,36 @@
 name: Deploy Frontend
 
 on:
+  # Auto-deploy after CI pipeline completes on prod branch
+  workflow_run:
+    workflows: ["Frontend CI Pipeline"]
+    branches:
+      - prod
+    types:
+      - completed
+  # Manual trigger: deploy latest OR rollback to a specific version
   workflow_dispatch:
     inputs:
       version:
-        description: 'Docker Tag/Commit SHA to deploy'
-        required: true
-        type: string
+        description: 'Version to deploy (commit SHA e.g. abc1234). Leave empty to deploy latest.'
+        required: false
+        default: 'latest'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # For auto-trigger: only deploy if CI succeeded
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
+      - name: Set image tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.version }}" != "latest" ]; then
+            echo "TAG=${{ inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "TAG=latest" >> $GITHUB_ENV
+          fi
+
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -20,33 +38,24 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Navigate to frontend application directory
-            cd ~/logistics-app || exit 1
-
-            # Export variables
-            export TAG=${{ inputs.version }}
-            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+            TAG=${{ env.TAG }}
+            echo "Deploying frontend version: $TAG"
 
             # Login to Docker Hub
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # Pull the specific frontend image version
-            docker pull ${DOCKER_USERNAME}/logistics-app-web:${TAG}
+            # Pull the target version
+            docker pull ${{ secrets.DOCKER_USERNAME }}/logistics-app-web:$TAG
 
-            # Stop and remove the old container (if running)
-            docker stop logistics-app-web || true
-            docker rm   logistics-app-web || true
+            # Re-tag as latest so docker-compose picks it up
+            docker tag ${{ secrets.DOCKER_USERNAME }}/logistics-app-web:$TAG ${{ secrets.DOCKER_USERNAME }}/logistics-app-web:latest
 
-            # Run the new container
-            # Maps host port 3000 → container port 80 (Nginx)
-            docker run -d \
-              --name logistics-app-web \
-              --restart unless-stopped \
-              -p 3000:80 \
-              ${DOCKER_USERNAME}/logistics-app-web:${TAG}
+            # Navigate to app directory and restart
+            cd ~/transportation-app || exit 1
+            docker compose -f docker-compose.yml up -d frontend
 
             # Show running containers
             docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 
-            # Cleanup old dangling images
+            # Cleanup old images
             docker image prune -f
