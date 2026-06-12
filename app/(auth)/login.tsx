@@ -3,7 +3,7 @@ import { Link, useRouter } from 'expo-router';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { saveGoogleUser } from '../../app/utils/tokenStorage';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -16,15 +16,16 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { loginUser } from '../services/auth';
+import { authenticateWithGoogle, loginUser } from '../services/auth';
 
 export default function LoginScreen() {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const { promptAsync } = useGoogleAuth();
+    const { promptAsync, response } = useGoogleAuth();
     const { login } = useAuth();
+    const processedToken = useRef<string | null>(null);
 
     const handleLogin = async () => {
         if (!email || !password) {
@@ -54,28 +55,18 @@ export default function LoginScreen() {
         }
     };
 
-    const handleGoogleLogin = async () => {
+    // Exchanges the Google id_token with our backend, then routes the user.
+    // Goes through apiClient so it uses the right base URL per environment
+    // (/api behind the prod proxy, localhost:8080 in dev) instead of a
+    // hardcoded localhost that breaks on phones and in production.
+    const handleGoogleToken = async (idToken: string) => {
+        // The popup (desktop) and the redirect response (mobile) can both fire
+        // for the same sign-in — only process a given token once.
+        if (processedToken.current === idToken) return;
+        processedToken.current = idToken;
+
         try {
-            const result = await promptAsync();
-            if (result?.type !== "success") return;
-
-            const idToken = result.params?.id_token;
-
-            if (!idToken) {
-                Alert.alert("Google login failed");
-                return;
-            }
-
-            const response = await fetch(
-                "http://localhost:8080/users/auth/google",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ idToken }),
-                }
-            );
-
-            const data = await response.json();
+            const data = await authenticateWithGoogle(idToken);
 
             if (data.needsRoleSelection) {
                 await saveGoogleUser({
@@ -94,7 +85,31 @@ export default function LoginScreen() {
                 if (data.userRole === "SENDER") router.replace("/search");
                 if (data.userRole === "TRANSPORTER") router.replace("/dashboard");
             }
+        } catch (err) {
+            console.error("Google login error:", err);
+            Alert.alert("Google login failed", "Could not complete sign-in. Please try again.");
+        }
+    };
 
+    // On mobile browsers the OAuth flow is a full-page redirect, so the result
+    // comes back here via `response` after the page reloads — not from the
+    // awaited promptAsync() (that only resolves for the desktop popup).
+    useEffect(() => {
+        if (response?.type === "success") {
+            const idToken = response.params?.id_token;
+            if (idToken) handleGoogleToken(idToken);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [response]);
+
+    const handleGoogleLogin = async () => {
+        try {
+            const result = await promptAsync();
+            // Desktop popup resolves here; the mobile redirect is handled by the effect above.
+            if (result?.type === "success") {
+                const idToken = result.params?.id_token;
+                if (idToken) handleGoogleToken(idToken);
+            }
         } catch (err) {
             console.error("Google login error:", err);
         }

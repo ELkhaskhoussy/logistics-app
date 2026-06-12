@@ -4,6 +4,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { getGoogleUser, clearGoogleUser } from '../../app/utils/tokenStorage';
+import { registerWithGoogle } from '../services/auth';
 
 export default function RoleSelection() {
     const router = useRouter();
@@ -25,26 +26,16 @@ export default function RoleSelection() {
         // GOOGLE FLOW
 
         try {
-            const response = await fetch(
-                "http://localhost:8080/users/auth/google/register",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: googleUser.email,
-                        firstName: googleUser.firstName,
-                        lastName: googleUser.lastName,
-                        imageUrl: googleUser.imageUrl,
-                        role: role,
-                    }),
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || "Google register failed");
-            }
+            // Goes through apiClient so it uses the right base URL per environment
+            // (/api behind the prod proxy, localhost:8080 in dev) instead of a
+            // hardcoded localhost that breaks on phones and in production.
+            const data = await registerWithGoogle({
+                email: googleUser.email,
+                firstName: googleUser.firstName,
+                lastName: googleUser.lastName,
+                imageUrl: googleUser.imageUrl,
+                role,
+            });
 
             login(data);
             await clearGoogleUser();
