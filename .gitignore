@@ -48,3 +48,6 @@ app-example
 
 # Expo development files
 .expo-shared/
+
+# Claude Code
+CLAUDE.md

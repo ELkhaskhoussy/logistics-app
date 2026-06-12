@@ -61,6 +61,7 @@ jobs:
           build-args: |
             API_URL=${{ env.API_URL }}
             APP_ENV=${{ env.APP_ENV }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
           tags: |
             ${{ env.CLEAN_USERNAME }}/logistics-app-web:latest
             ${{ env.CLEAN_USERNAME }}/logistics-app-web:${{ github.sha }}

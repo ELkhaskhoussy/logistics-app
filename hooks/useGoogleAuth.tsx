@@ -24,8 +24,7 @@ function useGoogleAuthWeb() {
     typeof window !== "undefined" ? window.location.origin : "";
 
   const [, response, promptAsync] = Google.useAuthRequest({
-    clientId:
-      "780914339608-eba2vlf90sluifam0pfpd0dh0iic7i5d.apps.googleusercontent.com",
+    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "",
     scopes: ["openid", "profile", "email"],
     responseType: "id_token",
     redirectUri,

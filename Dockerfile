@@ -29,10 +29,12 @@ COPY . .
 #         host.docker.internal is Docker Desktop's built-in hostname for the host.
 ARG API_URL=/api
 ARG APP_ENV=production
+ARG GOOGLE_CLIENT_ID=
 
 # Expose as ENV so Expo inlines them during `expo export`
 ENV EXPO_PUBLIC_API_URL=$API_URL
 ENV EXPO_PUBLIC_ENV=$APP_ENV
+ENV EXPO_PUBLIC_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID
 
 # Export the static web build → outputs to ./dist
 RUN npx expo export -p web
