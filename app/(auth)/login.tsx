@@ -1,8 +1,5 @@
 import { Feather } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
-import { useAuth } from '../../scripts/context/AuthContext';
-import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { saveGoogleUser } from '../../app/utils/tokenStorage';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -16,6 +13,9 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { saveGoogleUser } from '../../app/utils/tokenStorage';
+import { useGoogleAuth } from "../../hooks/useGoogleAuth";
+import { useAuth } from '../../scripts/context/AuthContext';
 import { authenticateWithGoogle, loginUser } from '../services/auth';
 
 export default function LoginScreen() {
