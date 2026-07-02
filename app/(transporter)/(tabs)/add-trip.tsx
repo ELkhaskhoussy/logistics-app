@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -14,6 +16,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Dimensions,
 } from 'react-native';
 import { createTrip } from '../../services/trip';
 import { getUserId } from '../../utils/tokenStorage';
@@ -24,6 +27,7 @@ type StopItem = {
 };
 
 export default function AddTripScreen() {
+  const isMobile = Dimensions.get('window').width < 768;
   const router = useRouter();
 
   const TOTAL_STEPS = 2;
@@ -403,7 +407,12 @@ export default function AddTripScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Starting Address (Collection)</Text>
 
-                <View style={styles.row}>
+                <View
+                  style={[
+                    styles.row,
+                    isMobile && styles.rowMobile,
+                  ]}
+                >
                   <View style={[styles.inputWrapper, styles.flex1]}>
                     <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
                     <TextInput
@@ -420,20 +429,55 @@ export default function AddTripScreen() {
                     <View
                       style={[
                         styles.inputWrapper,
-                        styles.dateFieldWeb,
+                        styles.webDatePickerContainer,
                         invalidDepartureDate && styles.inputErrorBorder,
                       ]}
                     >
-                      <Feather name="calendar" size={16} color="#6B7280" style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Departure: YYYY-MM-DD HH:MM"
-                        placeholderTextColor="#9CA3AF"
-                        value={tripData.departureDateTime}
-                        onChangeText={(text) => {
-                          setTripData((prev) => ({ ...prev, departureDateTime: text }));
-                          if (text.trim()) setInvalidDepartureDate(false);
+                      <Feather
+                        name="calendar"
+                        size={16}
+                        color="#6B7280"
+                        style={styles.inputIcon}
+                      />
+
+                      <DatePicker
+                        selected={
+                          tripData.departureDateTime
+                            ? new Date(tripData.departureDateTime)
+                            : null
+                        }
+                        onChange={(date: Date | null) => {
+                          if (!date) return;
+
+                          const formatted = formatDateTime(date, date);
+
+                          setTripData((prev) => ({
+                            ...prev,
+                            departureDateTime: formatted,
+                          }));
+
+                          setInvalidDepartureDate(false);
                         }}
+                        showTimeSelect
+                        dateFormat="yyyy-MM-dd HH:mm"
+                        placeholderText="Departure date & time"
+                        minDate={new Date()}
+                        popperPlacement="top-start"
+                        portalId="root"
+                        customInput={
+                        <TextInput
+                          style={{
+                            borderWidth: 0,
+                            height: 48,
+                            fontSize: 15,
+                            color: '#111827',
+                            backgroundColor: 'transparent',
+                          }}
+                          placeholder="Departure date & time"
+                          placeholderTextColor="#9CA3AF"
+                          editable={false}
+                        />
+                      }
                       />
                     </View>
                   ) : (
@@ -450,8 +494,6 @@ export default function AddTripScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-
-                {/* ❌ removed red requiredHint line */}
                 {tripData.departureDateTime ? (
                   <Text style={styles.smallInfo}>Departure: {tripData.departureDateTime}</Text>
                 ) : null}
@@ -461,7 +503,12 @@ export default function AddTripScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Arrival Address (Delivery)</Text>
 
-                <View style={styles.row}>
+                <View
+                  style={[
+                    styles.row,
+                    isMobile && styles.rowMobile,
+                  ]}
+                >
                   <View style={[styles.inputWrapper, styles.flex1]}>
                     <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
                     <TextInput
@@ -474,27 +521,62 @@ export default function AddTripScreen() {
                   </View>
 
                   {/* arrival */}
-                  {Platform.OS === 'web' ? (
-                    <View
-                      style={[
-                        styles.inputWrapper,
-                        styles.dateFieldWeb,
-                        invalidArrivalDate && styles.inputErrorBorder,
-                      ]}
-                    >
-                      <Feather name="calendar" size={16} color="#6B7280" style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Arrival: YYYY-MM-DD HH:MM"
-                        placeholderTextColor="#9CA3AF"
-                        value={tripData.arrivalDateTime}
-                        onChangeText={(text) => {
-                          setTripData((prev) => ({ ...prev, arrivalDateTime: text }));
-                          if (text.trim()) setInvalidArrivalDate(false);
-                        }}
-                      />
-                    </View>
-                  ) : (
+                 {Platform.OS === 'web' ? (
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      styles.webDatePickerContainer,
+                      invalidArrivalDate && styles.inputErrorBorder,
+                    ]}
+                  >
+                    <Feather
+                      name="calendar"
+                      size={16}
+                      color="#6B7280"
+                      style={styles.inputIcon}
+                    />
+
+                    <DatePicker
+                      selected={
+                        tripData.arrivalDateTime
+                          ? new Date(tripData.arrivalDateTime)
+                          : null
+                      }
+                      onChange={(date: Date | null) => {
+                        if (!date) return;
+
+                        const formatted = formatDateTime(date, date);
+
+                        setTripData((prev) => ({
+                          ...prev,
+                          arrivalDateTime: formatted,
+                        }));
+
+                        setInvalidArrivalDate(false);
+                      }}
+                      showTimeSelect
+                      dateFormat="yyyy-MM-dd HH:mm"
+                      placeholderText="Arrival date & time"
+                      minDate={new Date()}
+                      popperPlacement="top-start"
+                      portalId="root"
+                      customInput={
+                        <TextInput
+                          style={{
+                            borderWidth: 0,
+                            height: 48,
+                            fontSize: 15,
+                            color: '#111827',
+                            backgroundColor: 'transparent',
+                          }}
+                          placeholder="Arrival date & time"
+                          placeholderTextColor="#9CA3AF"
+                          editable={false}
+                        />
+                      }
+                    />
+                  </View>
+                ) : (
                     <TouchableOpacity
                       style={[styles.iconButton, invalidArrivalDate && styles.inputErrorBorder]}
                       onPress={() => {
@@ -509,7 +591,7 @@ export default function AddTripScreen() {
                   )}
                 </View>
 
-                {/* ❌ removed red requiredHint line */}
+                
                 {tripData.arrivalDateTime ? (
                   <Text style={styles.smallInfo}>Arrival: {tripData.arrivalDateTime}</Text>
                 ) : null}
@@ -531,7 +613,12 @@ export default function AddTripScreen() {
 
                 {tripData.stops.map((stop, index) => (
                   <View key={index} style={styles.stopBlock}>
-                    <View style={styles.stopRow}>
+                    <View
+                        style={[
+                          styles.stopRow,
+                          isMobile && styles.stopRowMobile,
+                        ]}
+                      >
                       <View style={[styles.inputWrapper, styles.flex1]}>
                         <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
                         <TextInput
@@ -544,24 +631,57 @@ export default function AddTripScreen() {
                       </View>
 
                       {/* stop time */}
-                      {Platform.OS === 'web' ? (
-                        <View
-                          style={[
-                            styles.inputWrapper,
-                            styles.dateFieldWebStop,
-                            invalidStopDates.includes(index) && styles.inputErrorBorder,
-                          ]}
-                        >
-                          <Feather name="calendar" size={16} color="#6B7280" style={styles.inputIcon} />
-                          <TextInput
-                            style={styles.input}
-                            placeholder="Stop time: YYYY-MM-DD HH:MM"
-                            placeholderTextColor="#9CA3AF"
-                            value={stop.dateTime || ''}
-                            onChangeText={(text) => updateStopDateTime(index, text)}
-                          />
-                        </View>
-                      ) : (
+                     {Platform.OS === 'web' ? (
+                      <View
+                        style={[
+                          styles.inputWrapper,
+                          styles.webDatePickerContainer,
+                          invalidStopDates.includes(index) && styles.inputErrorBorder,
+                        ]}
+                      >
+                        <Feather
+                          name="calendar"
+                          size={16}
+                          color="#6B7280"
+                          style={styles.inputIcon}
+                        />
+
+                        <DatePicker
+                          selected={
+                            stop.dateTime
+                              ? new Date(stop.dateTime)
+                              : null
+                          }
+                          onChange={(date: Date | null) => {
+                            if (!date) return;
+
+                            const formatted = formatDateTime(date, date);
+
+                            updateStopDateTime(index, formatted);
+                          }}
+                          showTimeSelect
+                          dateFormat="yyyy-MM-dd HH:mm"
+                          placeholderText="Stop date & time"
+                          minDate={new Date()}
+                          popperPlacement="top-start"
+                          portalId="root"
+                          customInput={
+                            <TextInput
+                              style={{
+                                borderWidth: 0,
+                                height: 48,
+                                fontSize: 15,
+                                color: '#111827',
+                                backgroundColor: 'transparent',
+                              }}
+                              placeholder="Stop date & time"
+                              placeholderTextColor="#9CA3AF"
+                              editable={false}
+                            />
+                          }
+                        />
+                      </View>
+                    ) : (
                         <TouchableOpacity
                           style={[styles.iconButton, invalidStopDates.includes(index) && styles.inputErrorBorder]}
                           onPress={() => {
@@ -782,6 +902,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    overflow: 'visible',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -813,10 +934,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#FFFFFF',
   },
-
-  dateFieldWeb: { width: 310 },
-  dateFieldWebStop: { width: 360 },
-
   iconButton: {
     width: 48,
     height: 48,
@@ -901,4 +1018,46 @@ const styles = StyleSheet.create({
   disabledButton: { opacity: 0.6 },
   nextButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   navIcon: { marginHorizontal: 8 },
+
+webDatePicker: {
+  width: '100%',
+  height: 48,
+  borderWidth: 1,
+  borderColor: '#D1D5DB',
+  borderRadius: 8,
+  paddingLeft: 40,
+  paddingRight: 12,
+  fontSize: 15,
+  color: '#111827',
+  backgroundColor: '#FFFFFF',
+},
+webDatePickerContainer: {
+  flex: 1,
+  minWidth: 160,
+  height: 48,
+  borderWidth: 1,
+  borderColor: '#D1D5DB',
+  borderRadius: 8,
+  backgroundColor: '#FFFFFF',
+  justifyContent: 'center',
+  paddingLeft: 40,
+},
+webDatePickerContainerStop: {
+  width: 360,
+  height: 48,
+  borderWidth: 1,
+  borderColor: '#D1D5DB',
+  borderRadius: 8,
+  backgroundColor: '#FFFFFF',
+  justifyContent: 'center',
+  paddingLeft: 40,
+},
+stopRowMobile: {
+  flexDirection: 'column',
+  alignItems: 'stretch',
+},
+rowMobile: {
+  flexDirection: 'column',
+  alignItems: 'stretch',
+},
 });

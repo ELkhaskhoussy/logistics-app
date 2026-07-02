@@ -17,6 +17,17 @@ import {
 import Toast from 'react-native-toast-message';
 import { apiClient } from '../services/backService';
 import { getToken , getUserId} from '../utils/tokenStorage';
+import * as ImagePicker from 'expo-image-picker';
+
+
+type ParcelItem = {
+  type: string;
+  description: string;
+  weightKg: string;
+  fragile: boolean;
+  localImages: string[];
+  imageUrls: string[];
+};
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
@@ -37,12 +48,13 @@ const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
-  const [parcels, setParcels] = useState([
-  {
+const [parcels, setParcels] = useState<ParcelItem[]>([  {
     type: '',
     description: '',
     weightKg: '',
     fragile: false,
+    localImages: [],
+    imageUrls: [],
   },
 ]);
 const [delivery, setDelivery] = useState({
@@ -97,7 +109,104 @@ const [delivery, setDelivery] = useState({
       setLoading(false);
     }
   };
+const pickParcelImages = async (parcelIndex: number) => {
 
+  const permissionResult =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+  if (!permissionResult.granted) {
+    alert('Permission to access gallery is required.');
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsMultipleSelection: true,
+    quality: 0.8,
+  });
+
+  if (result.canceled) return;
+
+  const selectedImages = result.assets.map(asset => asset.uri);
+  const uploadedUrls =
+  await uploadParcelImages(selectedImages);
+
+  setParcels(prev => {
+    const updated = [...prev];
+
+    updated[parcelIndex] = {
+      ...updated[parcelIndex],
+      localImages: [
+        ...updated[parcelIndex].localImages,
+        ...selectedImages,
+      ],
+      imageUrls: [
+  ...updated[parcelIndex].imageUrls,
+  ...uploadedUrls,
+],
+    };
+
+    return updated;
+  });
+};
+const uploadParcelImages = async (
+  imageUris: string[]
+): Promise<string[]> => {
+
+  const token = await getToken();
+
+  const formData = new FormData();
+
+  
+  for (let index = 0; index < imageUris.length; index++) {
+
+  const uri = imageUris[index];
+
+  const filename =
+    uri.split('/').pop() || `image-${index}.jpg`;
+
+
+  const match = /\.(\w+)$/.exec(filename);
+
+  const type = match
+    ? `image/${match[1]}`
+    : `image`;
+
+  if (Platform.OS === 'web') {
+
+    const response = await fetch(uri);
+
+    const blob = await response.blob();
+
+    formData.append(
+      'files',
+      blob,
+      filename
+    );
+
+  } else {
+
+    formData.append('files', {
+      uri,
+      name: filename,
+      type,
+    } as any);
+  }
+}
+
+  const response = await apiClient.post(
+    '/parcel-uploads/images',
+    formData,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+
+  return response.data;
+};
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -127,6 +236,8 @@ const handleConfirm = async () => {
         type: p.type,
         description: p.description,
         weightKg: parseFloat(p.weightKg),
+
+          imageUrls: p.imageUrls,
       })),
       recipient: {
         fullName: recipient.fullName,
@@ -134,8 +245,6 @@ const handleConfirm = async () => {
         tunisiaAddress: recipient.street
       },
     };
-
-    console.log("FINAL REQUEST BODY:", JSON.stringify(requestBody, null, 2));
 
 
   const response = await apiClient.post('/bookings', requestBody, {
@@ -158,11 +267,6 @@ setIsBookingOpen(false);
   setIsBooking(false);
 }
   };
-console.log("FINAL RECIPIENT:", {
-  fullName: recipient.fullName,
-  phoneNumber: recipient.phoneNumber,
-  address: `${recipient.street}`,
-});
   const displayName = profile?.displayName || 'Unknown';
   const imageUrl = userInfo?.imageUrl || null;
 
@@ -178,7 +282,6 @@ console.log("FINAL RECIPIENT:", {
         <TouchableOpacity onPress={() => router.back()}>
           <Feather name="arrow-left" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Transporter Profile</Text>
       </View>
 
       {/* PROFILE */}
@@ -387,10 +490,41 @@ console.log("FINAL RECIPIENT:", {
                   </View>
 
                   {/* PHOTO UPLOAD */}
-                  <View style={styles.uploadBox}>
-                    <Feather name="upload" size={24} color="#9CA3AF" />
-                    <Text style={styles.uploadText}>Ajouter une photo</Text>
-                  </View>
+                <TouchableOpacity
+  style={styles.uploadBox}
+  onPress={() => pickParcelImages(index)}
+>
+ {parcel.localImages.length === 0 && (
+  <>
+    <Feather name="upload" size={24} color="#9CA3AF" />
+
+    <Text style={styles.uploadText}>
+      Ajouter une photo
+    </Text>
+  </>
+)}
+
+  {parcel.localImages.length > 0 && (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ marginTop: 12 }}
+    >
+      {parcel.localImages.map((img, imgIndex) => (
+        <Image
+          key={imgIndex}
+          source={{ uri: img }}
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 10,
+            marginRight: 10,
+          }}
+        />
+      ))}
+    </ScrollView>
+  )}
+</TouchableOpacity>
 
 
                     <TouchableOpacity
@@ -398,7 +532,8 @@ console.log("FINAL RECIPIENT:", {
                       onPress={() =>
                         setParcels([
                           ...parcels,
-                          { type: '', description: '', weightKg: '', fragile: false },
+                          { type: '', description: '', weightKg: '', fragile: false ,  localImages: [],
+                            imageUrls: [],},
                         ])
                       }
                     >

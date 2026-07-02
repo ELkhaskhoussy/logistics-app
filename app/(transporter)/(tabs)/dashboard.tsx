@@ -18,7 +18,6 @@ import { getToken, getUserId } from '../../utils/tokenStorage';
 export default function DashboardScreen() {
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<'trips' | 'profile'>('trips');
 
   const [profile, setProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -148,65 +147,40 @@ export default function DashboardScreen() {
         <Text style={styles.headerTitle}>Transporter Dashboard</Text>
       </View>
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'trips' && styles.activeTab]}
-          onPress={() => setActiveTab('trips')}
-        >
-          <Text style={[styles.tabText, activeTab === 'trips' && styles.activeTabText]}>
-            My Trips
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'profile' && styles.activeTab]}
-          onPress={() => setActiveTab('profile')}
-        >
-          <Text style={[styles.tabText, activeTab === 'profile' && styles.activeTabText]}>
-            Profile
-          </Text>
-        </TouchableOpacity>
-      </View>
+     
 
       <ScrollView style={styles.main} contentContainerStyle={styles.scrollContent}>
-        {activeTab === 'trips' ? (
-          <View style={styles.tabContent}>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Upcoming Trips</Text>
+      <View style={styles.tabContent}>
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>Upcoming Trips</Text>
 
-              {loadingTrips ? (
-                <ActivityIndicator />
-              ) : upcomingTrips.length === 0 ? (
-                <Text style={styles.emptyText}>No upcoming trips</Text>
-              ) : (
-                upcomingTrips
-                  .sort(
-                    (a, b) =>
-                      new Date(a.departureTime).getTime() -
-                      new Date(b.departureTime).getTime()
-                  )
-                  .map(renderTrip)
-              )}
-            </View>
+    {loadingTrips ? (
+      <ActivityIndicator />
+    ) : upcomingTrips.length === 0 ? (
+      <Text style={styles.emptyText}>No upcoming trips</Text>
+    ) : (
+      upcomingTrips
+        .sort(
+          (a, b) =>
+            new Date(a.departureTime).getTime() -
+            new Date(b.departureTime).getTime()
+        )
+        .map(renderTrip)
+    )}
+  </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Past Trips</Text>
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>Past Trips</Text>
 
-              {loadingTrips ? (
-                <ActivityIndicator />
-              ) : pastTrips.length === 0 ? (
-                <Text style={styles.emptyText}>No past trips</Text>
-              ) : (
-                pastTrips.map(renderTrip)
-              )}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.tabContent}>
-            <Text>Profile coming soon</Text>
-          </View>
-        )}
-
+    {loadingTrips ? (
+      <ActivityIndicator />
+    ) : pastTrips.length === 0 ? (
+      <Text style={styles.emptyText}>No past trips</Text>
+    ) : (
+      pastTrips.map(renderTrip)
+    )}
+  </View>
+</View>
         <View style={styles.bottomPadding} />
       </ScrollView>
 
@@ -235,24 +209,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-  },
-
-  tab: {
-    flex: 1,
-    padding: 14,
-    alignItems: 'center',
-  },
-
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#2563EB',
-  },
-
-  tabText: { color: '#6B7280' },
-  activeTabText: { color: '#2563EB' },
 
   main: { flex: 1 },
   scrollContent: { padding: 16 },
