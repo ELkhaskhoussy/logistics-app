@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { apiClient } from '../../networking/client';
 
 import {
@@ -18,32 +18,9 @@ import { getToken, getUserId } from '../../utils/tokenStorage';
 export default function DashboardScreen() {
   const router = useRouter();
 
-
-  const [profile, setProfile] = useState<any>(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-
   const [upcomingTrips, setUpcomingTrips] = useState<any[]>([]);
   const [pastTrips, setPastTrips] = useState<any[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoadingProfile(true);
-        const userId = await getUserId();
-        if (!userId) return;
-
-        const res = await apiClient.get(`/users/${userId}`);
-        setProfile(res.data);
-      } catch (err) {
-        console.log('Failed to load profile:', err);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
-    loadProfile();
-  }, []);
 
   const loadTrips = useCallback(async () => {
     try {
@@ -147,40 +124,39 @@ export default function DashboardScreen() {
         <Text style={styles.headerTitle}>Transporter Dashboard</Text>
       </View>
 
-     
-
       <ScrollView style={styles.main} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.tabContent}>
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Upcoming Trips</Text>
+        <View style={styles.tabContent}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Upcoming Trips</Text>
 
-    {loadingTrips ? (
-      <ActivityIndicator />
-    ) : upcomingTrips.length === 0 ? (
-      <Text style={styles.emptyText}>No upcoming trips</Text>
-    ) : (
-      upcomingTrips
-        .sort(
-          (a, b) =>
-            new Date(a.departureTime).getTime() -
-            new Date(b.departureTime).getTime()
-        )
-        .map(renderTrip)
-    )}
-  </View>
+            {loadingTrips ? (
+              <ActivityIndicator />
+            ) : upcomingTrips.length === 0 ? (
+              <Text style={styles.emptyText}>No upcoming trips</Text>
+            ) : (
+              upcomingTrips
+                .sort(
+                  (a, b) =>
+                    new Date(a.departureTime).getTime() -
+                    new Date(b.departureTime).getTime()
+                )
+                .map(renderTrip)
+            )}
+          </View>
 
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Past Trips</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Past Trips</Text>
 
-    {loadingTrips ? (
-      <ActivityIndicator />
-    ) : pastTrips.length === 0 ? (
-      <Text style={styles.emptyText}>No past trips</Text>
-    ) : (
-      pastTrips.map(renderTrip)
-    )}
-  </View>
-</View>
+            {loadingTrips ? (
+              <ActivityIndicator />
+            ) : pastTrips.length === 0 ? (
+              <Text style={styles.emptyText}>No past trips</Text>
+            ) : (
+              pastTrips.map(renderTrip)
+            )}
+          </View>
+        </View>
+
         <View style={styles.bottomPadding} />
       </ScrollView>
 
@@ -208,7 +184,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-
 
   main: { flex: 1 },
   scrollContent: { padding: 16 },

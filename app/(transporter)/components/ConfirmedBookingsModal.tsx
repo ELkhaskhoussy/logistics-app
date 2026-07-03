@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { getConfirmedBookingsByTrip, updateBookingStatus} from '../../services/booking';
 import type { Booking } from '../../networking/types';
 import { Feather } from '@expo/vector-icons';
@@ -25,6 +26,7 @@ export default function ConfirmedBookingsModal({
   onClose,
   tripId
 }: Props) {
+    const router = useRouter();
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -105,20 +107,13 @@ const handleStatusChange = async (
     <View style={s.headerRow}>
      <Text style={s.headerCellName}>Destinataire</Text>
     <Text style={s.headerCell}>Téléphone</Text>
-    <Text style={s.headerCell}>Colis</Text>
-    <Text style={s.headerCell}>Poids</Text>
+    <Text style={s.headerCell}>Adresse</Text>
+    <Text style={s.headerCell}>Details</Text>
     <Text style={s.headerStatus}>Statut</Text>
     </View>
 
     {/* Rows */}
     {bookings.map((booking) => {
-      const parcels = booking.parcels ?? [];
-
-      const totalWeight = parcels.reduce(
-        (sum, p) => sum + (p.weightKg ?? 0),
-        0
-      );
-
       return (
         <View key={booking.id} style={s.row}>
           <Text style={s.cellName}>
@@ -129,13 +124,23 @@ const handleStatusChange = async (
             {booking.recipient?.phoneNumber ?? '—'}
           </Text>
 
-          <Text style={s.cell}>
-            {parcels.length}
+          <Text style={s.cell} numberOfLines={2}>
+            {booking.recipient?.tunisiaAddress ?? '—'}
           </Text>
 
-          <Text style={s.cell}>
-            {totalWeight} kg
-          </Text>
+          <TouchableOpacity
+            style={s.detailsBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              onClose();
+              router.push({
+                pathname: '/(transporter)/booking-details',
+                params: { tripId, bookingId: String(booking.id) },
+              } as any);
+            }}
+          >
+            <Feather name="more-horizontal" size={20} color="#2563EB" />
+          </TouchableOpacity>
 
          <View style={s.statusContainer}>
   <TouchableOpacity
@@ -335,6 +340,11 @@ cellName: {
   fontWeight: '600',
   color: '#111827',
    maxWidth: 100,
+},
+
+detailsBtn: {
+  flex: 1,
+  alignItems: 'flex-start',
 },
 
 statusContainer: {
