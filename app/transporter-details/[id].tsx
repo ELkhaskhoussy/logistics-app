@@ -19,6 +19,7 @@ import { apiClient } from '../services/backService';
 import { getToken , getUserId} from '../utils/tokenStorage';
 import * as ImagePicker from 'expo-image-picker';
 
+const BOOKING_SUCCESS_MESSAGE = 'Votre réservation est confirmée ✅';
 
 type ParcelItem = {
   type: string;
@@ -81,7 +82,9 @@ const [delivery, setDelivery] = useState({
   
  useEffect(() => {
   if (message) {
-    const timer = setTimeout(() => setMessage(null), 3000);
+    // Success toast stays 1s; errors stay longer so they can be read
+    const duration = message === BOOKING_SUCCESS_MESSAGE ? 1000 : 3000;
+    const timer = setTimeout(() => setMessage(null), duration);
     return () => clearTimeout(timer);
   }
 }, [message]);
@@ -257,7 +260,7 @@ const handleConfirm = async () => {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-setMessage("Booking confirmed");
+setMessage(BOOKING_SUCCESS_MESSAGE);
 setIsBookingOpen(false);
 
 } catch (error: any) {
@@ -266,7 +269,7 @@ setIsBookingOpen(false);
     error.message ??
     "Something went wrong";
 
-setMessage("You already booked this trip");
+setMessage(message);
 setIsBookingOpen(false);
 
 } finally {
