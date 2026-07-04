@@ -18,6 +18,7 @@ onConfirm: (data: {
     type: string;
     weightKg: number;
   }[];
+  notes: string;
 }) => void;
 }
 
@@ -33,9 +34,13 @@ const [parcelWeights, setParcelWeights] = useState<
   {
     type: string;
     weightKg: string;
+     quantity: number;
+    
   }[]
 >([]);
 const [editedFields, setEditedFields] = useState<string[]>([]);
+
+const [notes, setNotes] = useState('');
 
   useEffect(() => {
   if (booking) {
@@ -43,13 +48,16 @@ const [editedFields, setEditedFields] = useState<string[]>([]);
 
    
 
-    setParcelWeights(
-      parcels.map((parcel: any) => ({
-        type: parcel.type || 'COLIS',
-        weightKg: String(parcel.weightKg || ''),
-      }))
-    );
+  setParcelWeights(
+  parcels.map((parcel: any) => ({
+    type: parcel.type || 'COLIS',
+    weightKg: String(parcel.weightKg || ''),
+    quantity: parcel.quantity || 0,
+   
+  }))
+);
     setEditedFields([]);
+    setNotes('');
   }
 }, [booking]);
 
@@ -60,9 +68,13 @@ const [editedFields, setEditedFields] = useState<string[]>([]);
         type: parcel.type,
         weightKg: Number(parcel.weightKg),
     })),
+    notes,
     });
   };
-
+const totalQuantity = parcelWeights.reduce(
+  (sum, parcel) => sum + parcel.quantity,
+  0
+);
   return (
     <Modal
       visible={visible}
@@ -79,7 +91,7 @@ const [editedFields, setEditedFields] = useState<string[]>([]);
             <Text style={styles.label}>Quantité</Text>
 
             <TextInput
-              value={String(parcelWeights.length)}
+              value={String(totalQuantity)}
               editable={false}
               selectTextOnFocus={false}
               style={[styles.input, styles.disabledInput]}
@@ -89,7 +101,7 @@ const [editedFields, setEditedFields] = useState<string[]>([]);
             {parcelWeights.map((parcel, index) => (
             <View key={index}>
                 <Text style={styles.label}>
-                Colis {index + 1} — {parcel.type}
+                Colis Kg  {index + 1} — {parcel.type}
                 </Text>
 
                 <TextInput
@@ -115,7 +127,24 @@ const [editedFields, setEditedFields] = useState<string[]>([]);
                 />
             </View>
             ))}
-          
+          <Text style={styles.label}>Notes</Text>
+
+              <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Ajouter une remarque..."
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  style={[
+                    styles.input,
+                    {
+                      minHeight: 90,
+                      paddingTop: 12,
+                    },
+                  ]}
+                />
 
           <View style={styles.buttonsContainer}>
             <TouchableOpacity
