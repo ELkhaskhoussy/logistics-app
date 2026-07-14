@@ -19,11 +19,13 @@ import { apiClient } from '../services/backService';
 import { getToken , getUserId} from '../utils/tokenStorage';
 import * as ImagePicker from 'expo-image-picker';
 
+const BOOKING_SUCCESS_MESSAGE = 'Votre réservation est confirmée ✅';
 
 type ParcelItem = {
   type: string;
   description: string;
   weightKg: string;
+  quantity: string;
   fragile: boolean;
   localImages: string[];
   imageUrls: string[];
@@ -31,14 +33,13 @@ type ParcelItem = {
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
 
 const { id, tripId } = useLocalSearchParams<{
   id: string;
   tripId: string;
 }>();
 
-
+const [trip, setTrip] = useState<any>(null);
 const [message, setMessage] = useState<string | null>(null);
 const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
@@ -52,6 +53,7 @@ const [parcels, setParcels] = useState<ParcelItem[]>([  {
     type: '',
     description: '',
     weightKg: '',
+    quantity: '',
     fragile: false,
     localImages: [],
     imageUrls: [],
@@ -80,7 +82,9 @@ const [delivery, setDelivery] = useState({
   
  useEffect(() => {
   if (message) {
-    const timer = setTimeout(() => setMessage(null), 3000);
+    // Success toast stays 1s; errors stay longer so they can be read
+    const duration = message === BOOKING_SUCCESS_MESSAGE ? 1000 : 3000;
+    const timer = setTimeout(() => setMessage(null), duration);
     return () => clearTimeout(timer);
   }
 }, [message]);
@@ -103,6 +107,11 @@ const [delivery, setDelivery] = useState({
         headers: { Authorization: `Bearer ${token}` },
       });
       setProfile(profileResponse.data);
+
+      const tripResponse = await apiClient.get(`/catalog/trips/${tripId}`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+setTrip(tripResponse.data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -228,17 +237,16 @@ const handleConfirm = async () => {
     if (!senderId) {
       throw new Error("User not authenticated");
     }
-
     const requestBody = {
       senderId: senderId,
       tripId: tripId,
-      parcels: parcels.map(p => ({
-        type: p.type,
-        description: p.description,
-        weightKg: parseFloat(p.weightKg),
-
-          imageUrls: p.imageUrls,
-      })),
+     parcels: parcels.map(p => ({
+  type: p.type,
+  description: p.description,
+  weightKg: parseFloat(p.weightKg),
+  quantity: parseInt(p.quantity, 10),
+  imageUrls: p.imageUrls,
+})),
       recipient: {
         fullName: recipient.fullName,
         phoneNumber: recipient.phoneNumber,
@@ -247,11 +255,12 @@ const handleConfirm = async () => {
     };
 
 
+
   const response = await apiClient.post('/bookings', requestBody, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-setMessage("Booking confirmed");
+setMessage(BOOKING_SUCCESS_MESSAGE);
 setIsBookingOpen(false);
 
 } catch (error: any) {
@@ -260,7 +269,7 @@ setIsBookingOpen(false);
     error.message ??
     "Something went wrong";
 
-setMessage("You already booked this trip");
+setMessage(message);
 setIsBookingOpen(false);
 
 } finally {
@@ -269,7 +278,12 @@ setIsBookingOpen(false);
   };
   const displayName = profile?.displayName || 'Unknown';
   const imageUrl = userInfo?.imageUrl || null;
+  const totalWeight = parcels.reduce(
+  (sum, parcel) => sum + Number(parcel.weightKg || 0),
+  0
+);
 
+const totalPrice = totalWeight * Number(trip?.pricePerKg || 0);
   return (
     <View style={styles.container}>
         {message && (
@@ -467,8 +481,27 @@ setIsBookingOpen(false);
                         updated[index].weightKg = t;
                         setParcels(updated);
                       }}
+          
                     />
-
+                    <Text>Quantité</Text>
+                    <TextInput
+                      placeholder="1"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                      style={[
+                        styles.input,
+                        showErrors && !parcel.quantity && {
+                          borderColor: 'red',
+                          borderWidth: 1,
+                        },
+                      ]}
+                      value={parcel.quantity}
+                      onChangeText={(t) => {
+                        const updated = [...parcels];
+                        updated[index].quantity = t;
+                        setParcels(updated);
+                      }}
+                    />
                     
                   {/* FRAGILE */}
                   <View style={styles.fragileBox}>
@@ -532,7 +565,7 @@ setIsBookingOpen(false);
                       onPress={() =>
                         setParcels([
                           ...parcels,
-                          { type: '', description: '', weightKg: '', fragile: false ,  localImages: [],
+                          { type: '', description: '', weightKg: '',quantity: '' , fragile: false ,  localImages: [],
                             imageUrls: [],},
                         ])
                       }
@@ -655,7 +688,8 @@ setIsBookingOpen(false);
                             Colis {index + 1}
                           </Text>
 
-                          <View style={styles.row}>
+                         
+                         <View style={styles.row}>
                             <Text style={styles.label}>Catégorie</Text>
                             <Text style={styles.value}>{parcel.type || '-'}</Text>
                           </View>
@@ -665,7 +699,13 @@ setIsBookingOpen(false);
                             <Text style={styles.value}>{parcel.weightKg || '-'} kg</Text>
                           </View>
 
-                        </View>
+                          <View style={styles.row}>
+                            <Text style={styles.label}>Quantité</Text>
+                            <Text style={styles.value}>{parcel.quantity || '-'}</Text>
+                          </View>
+                         </View>
+
+                       
                       ))}
 
                     
@@ -697,7 +737,9 @@ setIsBookingOpen(false);
                   {/* PRICE */}
                   <View style={styles.priceCard}>
                     <Text style={styles.priceLabel}>Prix total</Text>
-                    <Text style={styles.priceValue}>299€</Text>
+                    <Text style={styles.priceValue}>
+                      {totalPrice.toFixed(2)} €
+                    </Text>
                   </View>
 
                 </View>

@@ -38,6 +38,7 @@ export const confirmBooking = async (
             type: string;
             weightKg: number;
         }[];
+        notes:string;
     }
 ): Promise<Booking> => {
 
