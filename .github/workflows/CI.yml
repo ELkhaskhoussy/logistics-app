@@ -44,10 +44,10 @@ jobs:
       - name: Set API URL for branch
         run: |
           if [ "${{ github.ref_name }}" = "prod" ]; then
-            echo "API_URL=/api" >> $GITHUB_ENV
+            echo "API_URL=https://api.sendlo.fr" >> $GITHUB_ENV
             echo "APP_ENV=production" >> $GITHUB_ENV
           else
-            echo "API_URL=/api" >> $GITHUB_ENV
+            echo "API_URL=https://api.sendlo.fr" >> $GITHUB_ENV
             echo "APP_ENV=development" >> $GITHUB_ENV
           fi
 
@@ -75,7 +75,7 @@ jobs:
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: 84.46.254.94
+          host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
@@ -83,8 +83,8 @@ jobs:
 
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            docker compose -f docker-compose.yml pull frontend
-            docker compose -f docker-compose.yml up -d frontend
+            docker compose -f docker-compose.prod.yml pull frontend
+            docker compose -f docker-compose.prod.yml up -d frontend
 
             docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
             docker image prune -f
