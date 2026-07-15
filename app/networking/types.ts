@@ -154,6 +154,11 @@ export interface SearchTripsParams {
 // Booking Types
 // ==========================================
 
+export interface ParcelImageResponse {
+    id?: number;
+    imageUrl: string;
+}
+
 export interface ParcelResponse {
     id: number;
     type: string;
@@ -162,6 +167,7 @@ export interface ParcelResponse {
     dimensions?: string;
     quantity?: number;
     quantityLabel?: string;
+    images?: ParcelImageResponse[];
 }
 
 export interface RecipientResponse {

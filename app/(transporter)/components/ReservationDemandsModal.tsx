@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AcceptBookingModal from './AcceptBookingModal';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Platform,
   ScrollView,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import { getPendingDemandsByTrip, updateBookingStatus, confirmBooking } from '../../services/booking';
 import type { Booking, ParcelResponse } from '../../networking/types';
+import { getApiBaseUrl } from '../../networking/config';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -46,6 +48,11 @@ function DemandCard({
   const description = firstParcel?.description ?? '—';
   const quantityLabel = firstParcel?.quantityLabel ?? (firstParcel?.quantity ? String(firstParcel.quantity) : '—');
   const destination = booking.recipient?.tunisiaAddress ?? '—';
+
+  // Build full URLs for the uploaded parcel photos
+  const photoUrls = parcels
+    .flatMap((p) => p.images ?? [])
+    .map((img) => `${getApiBaseUrl()}/parcel-uploads/files/${img.imageUrl}`);
 
   const isActioning = actionLoading === booking.id;
 
@@ -89,6 +96,15 @@ function DemandCard({
           <Text style={s.packageLabel}>Detailed Description: </Text>
           <Text style={s.packageValue}>{description}</Text>
         </View>
+
+        {/* ── Uploaded parcel photos */}
+        {photoUrls.length > 0 && (
+          <View style={s.photoRow}>
+            {photoUrls.map((url, i) => (
+              <Image key={i} source={{ uri: url }} style={s.photoThumb} resizeMode="cover" />
+            ))}
+          </View>
+        )}
 
       </View>
 
@@ -460,6 +476,16 @@ const s = StyleSheet.create({
   packageRow: { flexDirection: 'row', flexWrap: 'wrap' },
   packageLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
   packageValue: { fontSize: 13, color: '#4B5563', flexShrink: 1 },
+
+  photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  photoThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    backgroundColor: '#E5E7EB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
 
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
   acceptButton: {

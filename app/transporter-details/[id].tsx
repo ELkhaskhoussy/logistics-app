@@ -163,10 +163,23 @@ const uploadParcelImages = async (
 ): Promise<string[]> => {
 
   const token = await getToken();
+  const senderId = await getUserId();
+
+  // Resolve the sender's display name for the storage folder ({tripId}/{senderName}/)
+  let senderName = senderId ? `user-${senderId}` : 'sender';
+  try {
+    const me = await apiClient.get(`/users/${senderId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const full = `${me.data?.firstName ?? ''} ${me.data?.lastName ?? ''}`.trim();
+    if (full) senderName = full;
+  } catch {
+    // fall back to user-{id}
+  }
 
   const formData = new FormData();
 
-  
+
   for (let index = 0; index < imageUris.length; index++) {
 
   const uri = imageUris[index];
@@ -202,6 +215,9 @@ const uploadParcelImages = async (
     } as any);
   }
 }
+
+  formData.append('tripId', String(tripId ?? ''));
+  formData.append('senderName', senderName);
 
   const response = await apiClient.post(
     '/parcel-uploads/images',
