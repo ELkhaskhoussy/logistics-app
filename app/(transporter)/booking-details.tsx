@@ -3,6 +3,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -13,6 +15,7 @@ import {
 
 import { getConfirmedBookingsByTrip } from '../services/booking';
 import { getUserById } from '../services/user';
+import { getApiBaseUrl } from '../networking/config';
 import type { Booking, User } from '../networking/types';
 
 // ─── Row helper (label à gauche, valeur à droite) ────────────────────
@@ -30,6 +33,7 @@ export default function BookingDetailsScreen() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [sender, setSender] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -144,6 +148,26 @@ export default function BookingDetailsScreen() {
 
                   <InfoRow label="Catégorie" value={parcel.type} />
                   <InfoRow label="Poids" value={`${parcel.weightKg ?? '—'} kg`} />
+
+                  {(parcel.images?.length ?? 0) > 0 && (
+                    <View style={styles.photoSection}>
+                      <Text style={styles.photoLabel}>Photos</Text>
+                      <View style={styles.photoRow}>
+                        {parcel.images!.map((img, i) => {
+                          const url = `${getApiBaseUrl()}/parcel-uploads/files/${img.imageUrl}`;
+                          return (
+                            <TouchableOpacity
+                              key={i}
+                              activeOpacity={0.85}
+                              onPress={() => setSelectedPhoto(url)}
+                            >
+                              <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
                 </View>
               ))
             )}
@@ -152,6 +176,31 @@ export default function BookingDetailsScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
+
+      {/* ─── Full-size photo overlay ─────────────────────────────── */}
+      <Modal
+        visible={!!selectedPhoto}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPhoto(null)}
+      >
+        <TouchableOpacity
+          style={styles.photoOverlay}
+          activeOpacity={1}
+          onPress={() => setSelectedPhoto(null)}
+        >
+          {selectedPhoto && (
+            <Image source={{ uri: selectedPhoto }} style={styles.photoFull} resizeMode="contain" />
+          )}
+          <TouchableOpacity
+            style={styles.photoCloseBtn}
+            onPress={() => setSelectedPhoto(null)}
+            activeOpacity={0.7}
+          >
+            <Feather name="x" size={26} color="#FFFFFF" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -308,5 +357,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 4,
+  },
+
+  // ─── Photos ────────────────────────────────────────────────────
+  photoSection: {
+    marginTop: 10,
+  },
+  photoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  photoThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  photoOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoFull: {
+    width: '90%',
+    height: '80%',
+  },
+  photoCloseBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 54 : 24,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
