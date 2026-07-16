@@ -4,8 +4,10 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +18,7 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { apiClient } from '../services/backService';
+import { getApiBaseUrl } from '../networking/config';
 import { getToken , getUserId} from '../utils/tokenStorage';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -216,7 +219,19 @@ const uploadParcelImages = async (
   }
 }
 
-  formData.append('tripId', String(tripId ?? ''));
+  // Build a human-readable trip folder: transporter-departCity-arrivalCity-dd-MM-yyyy
+  const transporterName =
+    profile?.displayName ||
+    `${userInfo?.firstName ?? ''} ${userInfo?.lastName ?? ''}`.trim() ||
+    'transporteur';
+  const dep = trip?.departureTime || trip?.departureDate || '';
+  const d = new Date(dep);
+  const dateStr = isNaN(d.getTime())
+    ? 'date'
+    : `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+  const tripFolder = `${transporterName}-${trip?.departureCity ?? 'ville'}-${trip?.arrivalCity ?? 'ville'}-${dateStr}`;
+
+  formData.append('tripFolder', tripFolder);
   formData.append('senderName', senderName);
 
   const response = await apiClient.post(
@@ -292,8 +307,50 @@ setIsBookingOpen(false);
   setIsBooking(false);
 }
   };
-  const displayName = profile?.displayName || 'Unknown';
-  const imageUrl = userInfo?.imageUrl || null;
+  const displayName = profile?.displayName || userInfo?.firstName || 'Transporteur';
+  const photoUrl = profile?.photoUrl ? `${getApiBaseUrl()}${profile.photoUrl}` : null;
+  const initials = displayName
+    .split(' ')
+    .map((w: string) => w.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const phone = userInfo?.phone || '';
+
+  const openWhatsApp = () => {
+    const digits = phone.replace(/[^0-9]/g, '');
+    if (!digits) {
+      setMessage('Numéro du transporteur indisponible');
+      return;
+    }
+    const text = encodeURIComponent(
+      `Bonjour ${displayName}, je vous contacte via Sendlo au sujet d'un transport.`
+    );
+    Linking.openURL(`https://wa.me/${digits}?text=${text}`);
+  };
+
+  const onShare = async () => {
+    const shareUrl =
+      Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.href
+        : 'https://sendlo.fr';
+    const shareMessage = `${displayName} — transporteur sur Sendlo`;
+    try {
+      if (Platform.OS === 'web') {
+        const nav: any = typeof navigator !== 'undefined' ? navigator : null;
+        if (nav?.share) {
+          await nav.share({ title: displayName, text: shareMessage, url: shareUrl });
+        } else if (nav?.clipboard) {
+          await nav.clipboard.writeText(shareUrl);
+          setMessage('Lien copié ✅');
+        }
+      } else {
+        await Share.share({ message: `${shareMessage}\n${shareUrl}` });
+      }
+    } catch {
+      // cancelled or unavailable
+    }
+  };
   const totalWeight = parcels.reduce(
   (sum, parcel) => sum + Number(parcel.weightKg || 0),
   0
@@ -309,29 +366,68 @@ const totalPrice = totalWeight * Number(trip?.pricePerKg || 0);
         )}
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color="#fff" />
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerIcon}>
+          <Feather name="arrow-left" size={22} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onShare} style={styles.headerIcon}>
+          <Feather name="share-2" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
       {/* PROFILE */}
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.profileCard}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.avatar} />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.avatarWrap}>
+          {photoUrl ? (
+            <Image source={{ uri: photoUrl }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>?</Text>
+              <Text style={styles.avatarText}>{initials || '?'}</Text>
             </View>
           )}
 
-          <Text style={styles.profileName}>{displayName}</Text>
-          <Text style={styles.profileBio}>{profile?.bio || 'No bio'}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.profileName}>{displayName}</Text>
+            <Feather name="check-circle" size={18} color="#2563EB" />
+          </View>
+          <Text style={styles.profileSubtitle}>Transporteur · Tunisie ⇄ France</Text>
+        </View>
+
+        {/* Stat cards */}
+        <View style={styles.statRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{trip?.pricePerKg ?? profile?.pricingPerKg ?? '—'} €</Text>
+            <Text style={styles.statLabel}>par kg</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Feather name="truck" size={18} color="#2563EB" />
+            <Text style={styles.statLabel}>{profile?.vehicleType || 'Véhicule'}</Text>
+          </View>
+        </View>
+
+        {/* Info card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoSectionLabel}>À propos</Text>
+          <Text style={styles.infoBio}>{profile?.bio || 'Aucune description.'}</Text>
+
+          <View style={styles.infoDivider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoRowLabel}>Plaque</Text>
+            <Text style={styles.infoRowValue}>{profile?.licensePlate || '—'}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoRowLabel}>Téléphone</Text>
+            <Text style={styles.infoRowValue}>{phone || '—'}</Text>
+          </View>
         </View>
       </ScrollView>
 
       {/* BUTTONS */}
       <View style={styles.bottomBar}>
+        <TouchableOpacity style={styles.whatsappButton} onPress={openWhatsApp}>
+          <Feather name="message-circle" size={18} color="#fff" />
+          <Text style={styles.whatsappText}>WhatsApp</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.bookButton}
           onPress={() => {
@@ -339,11 +435,7 @@ const totalPrice = totalWeight * Number(trip?.pricePerKg || 0);
             setIsBookingOpen(true);
           }}
         >
-          <Text style={styles.bookText}>Book</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.whatsappButton}>
-          <Text style={styles.whatsappText}>WhatsApp</Text>
+          <Text style={styles.bookText}>Réserver</Text>
         </TouchableOpacity>
       </View>
        
@@ -844,6 +936,7 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
   },
 
@@ -858,28 +951,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  avatar: { width: 100, height: 100, borderRadius: 50 },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: '#fff' },
   avatarPlaceholder: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#DBEAFE',
+    borderWidth: 4,
+    borderColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  avatarText: { color: '#fff', fontSize: 30 },
+  avatarText: { color: '#1D4ED8', fontSize: 30, fontWeight: '600' },
 
-  profileName: { fontSize: 22, fontWeight: 'bold' },
+  profileName: { fontSize: 20, fontWeight: '600', color: '#111827' },
   profileBio: { color: '#6B7280' },
+
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarWrap: { alignItems: 'center', marginTop: 8 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 12 },
+  profileSubtitle: { textAlign: 'center', color: '#6B7280', fontSize: 13, marginTop: 4 },
+  statRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: 16,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: { fontSize: 18, fontWeight: '600', color: '#111827' },
+  statLabel: { fontSize: 12, color: '#6B7280' },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginTop: 16,
+  },
+  infoSectionLabel: { fontSize: 13, fontWeight: '600', color: '#6B7280', marginBottom: 6 },
+  infoBio: { fontSize: 14, color: '#374151', lineHeight: 21 },
+  infoDivider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  infoRowLabel: { fontSize: 14, color: '#6B7280' },
+  infoRowValue: { fontSize: 14, fontWeight: '600', color: '#111827' },
 
   bottomBar: { flexDirection: 'row', padding: 16, gap: 10 },
 
-  bookButton: { flex: 1, backgroundColor: '#2563EB', padding: 14, borderRadius: 10, alignItems: 'center' },
-  whatsappButton: { flex: 1, backgroundColor: '#25D366', padding: 14, borderRadius: 10, alignItems: 'center' },
+  bookButton: { flex: 1, backgroundColor: '#2563EB', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  whatsappButton: { flex: 1, backgroundColor: '#25D366', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 },
 
-  bookText: { color: '#fff' },
-  whatsappText: { color: '#fff' },
+  bookText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  whatsappText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 
   modalOverlay: {
     flex: 1,
