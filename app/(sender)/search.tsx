@@ -1,13 +1,9 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useState } from "react";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import React, { useEffect, useMemo, useState } from "react";
 import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router";
 
 import {
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,108 +14,119 @@ import {
 
 import { apiClient } from "../services/backService";
 
-/**
- * Format date yyyy-MM-dd
- */
-const formatLocalDate = (d: Date) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+type MonthOption = { value: string; label: string };
 
-const normalizeCity = (s?: string) => {
-  const value = (s ?? "").trim();
-  if (!value) return "";
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-};
-
-const addMonths = (yyyyMMdd: string, monthsToAdd: number) => {
-  const [y, m, d] = yyyyMMdd.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-
-  date.setMonth(date.getMonth() + monthsToAdd);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+// "YYYY-MM" -> first & last day of that month
+const monthToRange = (value: string) => {
+  const [y, m] = value.split("-").map(Number);
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
 };
 
 export default function SearchScreen() {
   const router = useRouter();
 
-  const [searchData, setSearchData] = useState({
-    collectionCity: "",
-    deliveryCity: "",
-    date: "",
-  });
+  const [collectionCity, setCollectionCity] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<MonthOption | null>(null);
 
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [monthOpen, setMonthOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<{ route: string; month?: string } | null>(null);
 
-  const [collectionError, setCollectionError] = useState(false);
-  const [deliveryError, setDeliveryError] = useState(false);
-  const [dateError, setDateError] = useState(false);
-
-  const todayExample = formatLocalDate(new Date());
-
-  const handleSearch = async () => {
-    setCollectionError(false);
-    setDeliveryError(false);
-    setDateError(false);
-
-    if (!searchData.collectionCity.trim()) {
-      setCollectionError(true);
-      Toast.show({ type: "error", text1: "Collection city required" });
-      return;
+  // Next 6 months as dropdown options
+  const monthOptions: MonthOption[] = useMemo(() => {
+    const opts: MonthOption[] = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const raw = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+      opts.push({ value, label: raw.charAt(0).toUpperCase() + raw.slice(1) });
     }
+    return opts;
+  }, []);
 
-    if (!searchData.deliveryCity.trim()) {
-      setDeliveryError(true);
-      Toast.show({ type: "error", text1: "Delivery city required" });
-      return;
-    }
-
-    if (!searchData.date.trim()) {
-      setDateError(true);
-      Toast.show({ type: "error", text1: "Date required" });
-      return;
-    }
-
+  // Default feed: all available upcoming trips
+  const loadAvailableTrips = async () => {
     try {
       setLoading(true);
-
-      const departureCity = normalizeCity(searchData.collectionCity);
-      const arrivalCity = normalizeCity(searchData.deliveryCity);
-      const selectedDate = searchData.date;
-
-      const params = new URLSearchParams();
-
-      if (departureCity) params.append("departureCity", departureCity);
-      if (arrivalCity) params.append("arrivalCity", arrivalCity);
-      if (selectedDate) {
-        params.append("dateFrom", selectedDate);
-        params.append("dateTo", addMonths(selectedDate, 3));
-      }
-
-      const url = `/catalog/trips/search?${params.toString()}`;
-      console.log("Final URL =", url);
-
-      const response = await apiClient.get(url);
-      const data = response.data;
-
-      setTrips(Array.isArray(data) ? data : []);
+      const response = await apiClient.get("/catalog/trips/available");
+      setTrips(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error(err);
       setTrips([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadAvailableTrips();
+  }, []);
+
+  const runSearch = async (dep: string, arr: string, month: MonthOption | null) => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      params.append("departureCity", dep.trim());
+      params.append("arrivalCity", arr.trim());
+      if (month) {
+        const { from, to } = monthToRange(month.value);
+        params.append("dateFrom", from);
+        params.append("dateTo", to);
+      }
+      const response = await apiClient.get(`/catalog/trips/search?${params.toString()}`);
+      setTrips(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error(err);
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!collectionCity.trim()) {
+      Toast.show({ type: "error", text1: "Ville de collecte requise" });
+      return;
+    }
+    if (!deliveryCity.trim()) {
+      Toast.show({ type: "error", text1: "Ville de livraison requise" });
+      return;
+    }
+
+    await runSearch(collectionCity, deliveryCity, selectedMonth);
+
+    setActiveFilters({
+      route: `${collectionCity.trim()} → ${deliveryCity.trim()}`,
+      month: selectedMonth?.label,
+    });
+    setSearchOpen(false);
+    setMonthOpen(false);
+  };
+
+  // Remove all filters -> back to the full feed
+  const clearAll = () => {
+    setCollectionCity("");
+    setDeliveryCity("");
+    setSelectedMonth(null);
+    setActiveFilters(null);
+    setSearchOpen(false);
+    setMonthOpen(false);
+    loadAvailableTrips();
+  };
+
+  // Remove just the month -> re-search the same route without a month
+  const clearMonth = async () => {
+    setSelectedMonth(null);
+    setActiveFilters((prev) => (prev ? { route: prev.route } : null));
+    await runSearch(collectionCity, deliveryCity, null);
   };
 
   const formatDateTime = (value: any) => {
@@ -132,210 +139,168 @@ export default function SearchScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Feather name="package" size={24} color="#FFFFFF" />
+          <Feather name="package" size={22} color="#FFFFFF" />
           <Text style={styles.headerTitle}>Tunisia-France Link</Text>
         </View>
       </View>
 
-      <ScrollView style={styles.main}>
-        {/* Title */}
-        <View style={styles.titleSection}>
-          <Text style={styles.title}>Find Your Transporter</Text>
-          <Text style={styles.subtitle}>
-            Search for available transporters on your route
-          </Text>
-        </View>
-
-        {/* Search Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Search Transporters</Text>
-          </View>
-
-          <View style={styles.cardContent}>
-            {/* Collection */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Collection City</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Tunis"
-                  placeholderTextColor="#9CA3AF"
-                  value={searchData.collectionCity}
-                  onChangeText={(text) =>
-                    setSearchData({ ...searchData, collectionCity: text })
-                  }
-                />
-              </View>
-            </View>
-
-            {/* Delivery */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Delivery City</Text>
-              <View style={styles.inputWrapper}>
-                <Feather name="map-pin" size={16} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Paris"
-                  placeholderTextColor="#9CA3AF"
-                  value={searchData.deliveryCity}
-                  onChangeText={(text) =>
-                    setSearchData({ ...searchData, deliveryCity: text })
-                  }
-                />
-              </View>
-            </View>
-
-            {/* Date */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Preferred Date</Text>
-
-              {Platform.OS === "web" ? (
-                <View style={styles.webDateWrapper}>
-                  <Feather name="calendar" size={16} color="#6B7280" style={styles.webCalendarIcon} />
-
-                  <DatePicker
-                    selected={selectedDate}
-                    onChange={(date: Date | null) => {
-                      if (!date) return;
-
-                      setSelectedDate(date);
-                      setSearchData({
-                        ...searchData,
-                        date: formatLocalDate(date),
-                      });
-                    }}
-                    dateFormat="yyyy-MM-dd"
-                    placeholderText={`e.g. ${todayExample}`}
-                    customInput={
-                      <input
-                        style={{
-                          width: "100%",
-                          height: 48,
-                          paddingLeft: 36,
-                          borderRadius: 8,
-                          border: "1px solid #D1D5DB",
-                        }}
-                      />
-                    }
-                  />
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.datePicker}
-                  onPress={() => setShowCalendar(true)}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="calendar" size={16} color="#6B7280" />
-                  <Text style={[styles.datePickerText, !searchData.date && styles.datePickerPlaceholder]}>
-                    {searchData.date || `Select a date (e.g. ${todayExample})`}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-              <Text style={styles.searchButtonText}>Find Transporters</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Results */}
-        {loading && (
-          <Text style={{ textAlign: "center", marginTop: 20 }}>
-            Loading trips...
-          </Text>
+      <ScrollView style={styles.main} contentContainerStyle={{ padding: 16 }}>
+        {/* Collapsed search pill */}
+        {!searchOpen && (
+          <TouchableOpacity style={styles.pill} activeOpacity={0.8} onPress={() => setSearchOpen(true)}>
+            <Feather name="search" size={18} color="#6B7280" />
+            <Text style={styles.pillText}>Rechercher un trajet</Text>
+            <Feather name="sliders" size={18} color="#2563EB" />
+          </TouchableOpacity>
         )}
 
+        {/* Active filter chips */}
+        {!searchOpen && activeFilters && (
+          <View style={styles.chipsRow}>
+            <TouchableOpacity style={styles.chip} onPress={clearAll} activeOpacity={0.8}>
+              <Text style={styles.chipText}>{activeFilters.route}</Text>
+              <Feather name="x" size={14} color="#1D4ED8" />
+            </TouchableOpacity>
+            {activeFilters.month ? (
+              <TouchableOpacity style={styles.chip} onPress={clearMonth} activeOpacity={0.8}>
+                <Text style={styles.chipText}>{activeFilters.month}</Text>
+                <Feather name="x" size={14} color="#1D4ED8" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
+        {/* Expanded search panel */}
+        {searchOpen && (
+          <View style={styles.panel}>
+            <View style={styles.panelHeader}>
+              <Text style={styles.panelTitle}>Rechercher un trajet</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchOpen(false);
+                  setMonthOpen(false);
+                }}
+              >
+                <Feather name="x" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.field}>
+              <Feather name="map-pin" size={16} color="#6B7280" style={styles.fieldIcon} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Ville de collecte"
+                placeholderTextColor="#9CA3AF"
+                value={collectionCity}
+                onChangeText={setCollectionCity}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Feather name="map-pin" size={16} color="#6B7280" style={styles.fieldIcon} />
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Ville de livraison"
+                placeholderTextColor="#9CA3AF"
+                value={deliveryCity}
+                onChangeText={setDeliveryCity}
+              />
+            </View>
+
+            {/* Month dropdown */}
+            <TouchableOpacity style={styles.field} activeOpacity={0.8} onPress={() => setMonthOpen(!monthOpen)}>
+              <Feather name="calendar" size={16} color="#6B7280" style={styles.fieldIcon} />
+              <Text style={[styles.monthText, { color: selectedMonth ? "#111827" : "#9CA3AF" }]}>
+                {selectedMonth ? selectedMonth.label : "Mois (optionnel)"}
+              </Text>
+              <Feather name="chevron-down" size={16} color="#6B7280" style={styles.chevron} />
+            </TouchableOpacity>
+
+            {monthOpen && (
+              <View style={styles.dropdown}>
+                {monthOptions.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedMonth(opt);
+                      setMonthOpen(false);
+                    }}
+                  >
+                    <Text style={{ color: "#111827", fontSize: 14 }}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <Text style={styles.searchButtonText}>Rechercher</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={clearAll} style={styles.clearLink}>
+              <Text style={styles.clearLinkText}>Effacer</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Results header */}
+        <Text style={styles.resultsTitle}>
+          {activeFilters ? "Résultats" : "Trajets disponibles"}
+          {!loading ? ` · ${trips.length}` : ""}
+        </Text>
+
+        {loading && <Text style={styles.stateText}>Chargement…</Text>}
         {!loading && trips.length === 0 && (
-          <Text style={{ textAlign: "center", marginTop: 20 }}>
-            No trips found
-          </Text>
+          <Text style={styles.stateText}>Aucun trajet trouvé</Text>
         )}
 
         {!loading &&
-  trips.map((trip) => {
-    const searchArrival = searchData.deliveryCity.toLowerCase();
+          trips.map((trip) => (
+            <TouchableOpacity
+              key={trip.id}
+              style={styles.resultCard}
+              onPress={() => {
+                if (!trip.transporterId) return;
+                router.push({
+                  pathname: "/transporter-details/[id]",
+                  params: { id: String(trip.transporterId), tripId: String(trip.id) },
+                });
+              }}
+            >
+              <View style={styles.routeRow}>
+                <Feather name="map-pin" size={16} color="#6B7280" />
+                <Text style={styles.routeText}>
+                  {trip.departureCity} → {trip.arrivalCity}
+                </Text>
+              </View>
 
-    const filteredStops = (trip.collectionStops || []).filter(
-      (s: any) => s.city.toLowerCase() === searchArrival
-    );
+              {/* Full route with stops (shown when the trip has intermediate stops) */}
+              {Array.isArray(trip.collectionStops) && trip.collectionStops.length > 2 && (
+                <View style={styles.row}>
+                  <Feather name="git-commit" size={14} color="#9CA3AF" />
+                  <Text style={styles.date}>
+                    {[...trip.collectionStops]
+                      .sort((a: any, b: any) => (a.ordre ?? 0) - (b.ordre ?? 0))
+                      .map((s: any) => s.city)
+                      .join(" → ")}
+                  </Text>
+                </View>
+              )}
 
-    return (
-      <TouchableOpacity
-        key={trip.id}
-        style={styles.resultCard}
-        onPress={() => {
-          if (!trip.transporterId) return;
+              <View style={styles.row}>
+                <Feather name="calendar" size={14} color="#9CA3AF" />
+                <Text style={styles.date}>{formatDateTime(trip.departureTime)}</Text>
+              </View>
 
-         router.push({
-          pathname: "/transporter-details/[id]",
-          params: {
-            id: String(trip.transporterId),
-            tripId: String(trip.id),
-          },
-        });
-        }}
-      >
-        {/* ROUTE */}
-        <View style={styles.routeRow}>
-          <Feather name="map-pin" size={16} color="#6B7280" />
-          <Text style={styles.routeText}>
-            {trip.departureCity} → {trip.arrivalCity}
-          </Text>
-        </View>
-
-        {/* DATE */}
-        <View style={styles.row}>
-          <Feather name="calendar" size={14} color="#9CA3AF" />
-          <Text style={styles.date}>
-            {formatDateTime(trip.departureTime)}
-          </Text>
-        </View>
-
-        {/* FILTERED STOPS (ONLY MATCHED) */}
-        {filteredStops.map((s: any, i: number) => (
-          <View key={i} style={styles.row}>
-            <Feather name="map-pin" size={14} color="#9CA3AF" />
-            <Text style={styles.stopText}>
-              {s.city} • {formatDateTime(s.stopTime)}
-            </Text>
-          </View>
-        ))}
-
-        {/* PRICE */}
-        <Text style={styles.capacity}>
-          {trip.availableCapacityKg} kg • €{trip.pricePerKg}/kg
-        </Text>
-      </TouchableOpacity>
-    );
-  })}
+              <Text style={styles.capacity}>
+                {trip.availableCapacityKg} kg · €{trip.pricePerKg}/kg
+              </Text>
+            </TouchableOpacity>
+          ))}
       </ScrollView>
-
-      {/* Native date picker — renders when showCalendar is true */}
-      {Platform.OS !== "web" && showCalendar && (
-        <DateTimePicker
-          value={selectedDate ?? new Date()}
-          mode="date"
-          display="default"
-          minimumDate={new Date()}
-          onChange={(event: any, date?: Date) => {
-            setShowCalendar(false);
-            if (date) {
-              setSelectedDate(date);
-              setSearchData((prev) => ({
-                ...prev,
-                date: formatLocalDate(date),
-              }));
-            }
-          }}
-        />
-      )}
 
       <Toast />
     </View>
-
   );
 }
 
@@ -343,127 +308,114 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
 
   header: { backgroundColor: "#2563EB", padding: 16 },
-
   headerContent: { flexDirection: "row", alignItems: "center", gap: 12 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
 
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
+  main: { flex: 1 },
 
-  main: { flex: 1, padding: 20 },
+  // Collapsed pill
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  pillText: { flex: 1, color: "#9CA3AF", fontSize: 14 },
 
-  titleSection: { paddingVertical: 32 },
+  // Filter chips
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  chipText: { color: "#1D4ED8", fontSize: 13, fontWeight: "500" },
 
-  title: { fontSize: 30, fontWeight: "bold" },
-
-  subtitle: { color: "#6B7280" },
-
-  card: {
-    backgroundColor: "#FFF",
-    borderRadius: 10,
+  // Expanded panel
+  panel: {
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 16,
   },
+  panelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  panelTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
 
-  cardHeader: { padding: 20 },
-
-  cardTitle: { fontSize: 18, fontWeight: "bold" },
-
-  cardContent: { padding: 20 },
-
-  inputGroup: { marginBottom: 16 },
-
-  label: { marginBottom: 6 },
-
-  inputWrapper: { flexDirection: "row", alignItems: "center" },
-
-  inputIcon: { position: "absolute", left: 10 },
-
-  input: {
-    flex: 1,
+  field: {
+    flexDirection: "row",
+    alignItems: "center",
     height: 48,
     borderWidth: 1,
     borderColor: "#D1D5DB",
     borderRadius: 8,
     paddingLeft: 36,
+    paddingRight: 12,
+    marginBottom: 10,
+    backgroundColor: "#FFFFFF",
+    position: "relative",
   },
+  fieldIcon: { position: "absolute", left: 12 },
+  fieldInput: { flex: 1, height: 46, fontSize: 14, color: "#111827" },
+  monthText: { flex: 1, fontSize: 14 },
+  chevron: { position: "absolute", right: 12 },
 
-  dateText: {
-    flex: 1,
-    height: 48,
-    lineHeight: 48,
-    paddingLeft: 36,
+  dropdown: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    marginTop: -4,
+    marginBottom: 10,
+    overflow: "hidden",
+  },
+  dropdownItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   },
 
   searchButton: {
     backgroundColor: "#2563EB",
-    height: 50,
-    borderRadius: 8,
+    height: 48,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 4,
   },
+  searchButtonText: { color: "#FFFFFF", fontWeight: "600", fontSize: 14 },
+  clearLink: { marginTop: 10, alignItems: "center" },
+  clearLinkText: { color: "#2563EB", fontWeight: "600" },
 
-  searchButtonText: { color: "#FFF", fontWeight: "600" },
+  // Results
+  resultsTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginTop: 20, marginBottom: 10 },
+  stateText: { textAlign: "center", marginTop: 20, color: "#6B7280" },
 
   resultCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: "#FFFFFF",
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     marginBottom: 12,
   },
-
-  routeRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-  marginBottom: 6,
-},
-
-routeText: {
-  fontWeight: "bold",
-  fontSize: 16,
-},
-
-row: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 6,
-  marginTop: 2,
-},
-
-stopText: {
-  color: "#6B7280",
-},
-  route: { fontWeight: "bold" },
-
-  date: { color: "#6B7280" },
-
-  capacity: { marginTop: 8, fontWeight: "600" },
-
-  webDateWrapper: { position: "relative" },
-
-  datePicker: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
-  },
-
-  datePickerText: {
-    flex: 1,
-    fontSize: 15,
-    color: "#111827",
-  },
-
-  datePickerPlaceholder: {
-    color: "#9CA3AF",
-  },
-
-  webCalendarIcon: { position: "absolute", left: 10, top: 16 },
+  routeRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
+  routeText: { fontWeight: "700", fontSize: 15, color: "#111827" },
+  row: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  date: { color: "#6B7280", fontSize: 13 },
+  capacity: { marginTop: 8, fontWeight: "600", color: "#111827" },
 });
