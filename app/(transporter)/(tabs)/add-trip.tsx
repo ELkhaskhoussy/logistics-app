@@ -354,7 +354,16 @@ export default function AddTripScreen() {
       }, 800);
     } catch (error: any) {
       console.error('[ADD-TRIP] ❌ Failed:', error);
-      Alert.alert('Error', error.message || 'Failed to create trip');
+      const msg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Une erreur est survenue lors de la création du trajet';
+      Toast.show({
+        type: 'error',
+        text1: 'Échec de la création du trajet',
+        text2: msg,
+      });
     } finally {
       setLoading(false);
     }
