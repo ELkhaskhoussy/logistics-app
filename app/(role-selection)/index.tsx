@@ -38,6 +38,24 @@ export default function RoleSelection() {
             });
 
             login(data);
+
+            // Google transporters need a transporter profile too (same as classic registration),
+            // otherwise trip creation fails with 400 (no profile).
+            if (role === "TRANSPORTER") {
+                try {
+                    const { createTransporterProfile } = require('../services/trip');
+                    await createTransporterProfile(data.userId, {
+                        displayName:
+                            `${googleUser.firstName ?? ''} ${googleUser.lastName ?? ''}`.trim() ||
+                            googleUser.email,
+                        bio: '',
+                        pricingPerKg: 0,
+                    });
+                } catch (profileError) {
+                    console.error('⚠️ [ROLE-SELECT] Failed to create transporter profile:', profileError);
+                }
+            }
+
             await clearGoogleUser();
 
             if (role === "SENDER") {
