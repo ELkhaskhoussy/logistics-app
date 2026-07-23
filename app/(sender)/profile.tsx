@@ -1,21 +1,15 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
-import React, { useState, useCallback } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  TextInput,
-  Image,
-} from 'react-native';
-
-import { getUserById, updateUserPhone } from '../services/user';
-import { useAuth } from '../../scripts/context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Card from '../../components/meridian/Card';
+import Glow from '../../components/meridian/Glow';
+import GradientButton from '../../components/meridian/GradientButton';
+import { fonts, M } from '../../constants/meridian';
+import { useAuth } from '../../scripts/context/AuthContext';
+import { getUserById, updateUserPhone } from '../services/user';
 
 export default function SenderProfileScreen() {
   const router = useRouter();
@@ -24,36 +18,20 @@ export default function SenderProfileScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // 
-
-  const [userInfo, setUserInfo] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    role: '',
-    imageUrl: '',
-  });
-
+  const [isUploading, setIsUploading] = useState(false);
+  const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', email: '', phone: '', role: '', imageUrl: '' });
   const [phone, setPhone] = useState('');
 
   useFocusEffect(
     useCallback(() => {
-      if (!authLoading && userId) {
-        loadUserInfo();
-      }
+      if (!authLoading && userId) loadUserInfo();
     }, [authLoading, userId])
   );
 
   const loadUserInfo = async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
+    if (!userId) { setLoading(false); return; }
     try {
       const userData = await getUserById(Number(userId));
-
       const data = {
         firstName: userData.firstName,
         lastName: userData.lastName,
@@ -62,14 +40,9 @@ export default function SenderProfileScreen() {
         role: userData.role,
         imageUrl: userData.imageUrl || '',
       };
-
       setUserInfo(data);
       setPhone(data.phone);
-
-      if (!isUploading) {
-        setImage(data.imageUrl);
-      }
-
+      if (!isUploading) setImage(data.imageUrl);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Could not load profile');
@@ -79,62 +52,39 @@ export default function SenderProfileScreen() {
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: true,
-      quality: 0.7,
-
-    });
-    console.log("Picked image:", result);
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, base64: true, quality: 0.7 });
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      setImage(uri); // instant preview
+      setImage(uri);
       uploadImage(uri);
     }
   };
-const uploadImage = async (uri: string) => {
-  try {
-    setIsUploading(true);
 
-    const formData = new FormData();
-
-    
-    const response = await fetch(uri);
-    const blob = await response.blob();
-
-    formData.append("file", blob, "profile.jpg");
-
-    const uploadResponse = await fetch(
-      `http://localhost:8080/users/${userId}/upload-profile-photo`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    const photoUrl = await uploadResponse.text();
-
-    setImage(photoUrl);
-
-    Alert.alert("Success", "Profile photo updated");
-
-  } catch (error) {
-    console.error(error);
-    Alert.alert("Error", "Upload failed");
-  } finally {
-    setIsUploading(false);
-  }
-};
+  const uploadImage = async (uri: string) => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      formData.append('file', blob, 'profile.jpg');
+      const uploadResponse = await fetch(`http://localhost:8080/users/${userId}/upload-profile-photo`, { method: 'POST', body: formData });
+      const photoUrl = await uploadResponse.text();
+      setImage(photoUrl);
+      Alert.alert('Success', 'Profile photo updated');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Upload failed');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
       await updateUserPhone(userId, { phone });
-
       Alert.alert('Success', 'Phone updated');
-
       setIsEditing(false);
       loadUserInfo();
-
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Failed to update phone');
@@ -149,99 +99,84 @@ const uploadImage = async (uri: string) => {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+        <ActivityIndicator size="large" color={M.warm1} />
+        <Text style={styles.loadingText}>Chargement du profil…</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={pickImage} disabled={isUploading}>
-          <View style={styles.avatarContainer}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.avatar} />
-            ) : (
-              <Feather name="user" size={48} color="#FFFFFF" />
-            )}
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* HERO */}
+      <View style={styles.hero}>
+        <LinearGradient colors={[M.inkHi, M.ink]} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Glow color="#38BDF8" size={200} style={{ alignSelf: 'center', top: -20 }} />
+        <Pressable onPress={pickImage} disabled={isUploading} style={styles.avatarWrap}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.avatarImg} />
+          ) : (
+            <LinearGradient colors={[M.blue, M.cool]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarGrad}>
+              <Feather name="user" size={38} color="#fff" />
+            </LinearGradient>
+          )}
+          <View style={styles.camBadge}>
+            {isUploading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="camera" size={13} color="#fff" />}
           </View>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Sender Profile</Text>
-        <Text style={styles.subtitle}>Tap image to change</Text>
+        </Pressable>
+        <Text style={styles.name}>{userInfo.firstName} {userInfo.lastName}</Text>
+        <Text style={styles.role}>Sender · {userInfo.phone ? 'Membre' : userInfo.role}</Text>
       </View>
 
-      {/* Info */}
-      <View style={styles.card}>
-        <InfoRow icon="user" label="First Name" value={userInfo.firstName} />
-        <InfoRow icon="user" label="Last Name" value={userInfo.lastName} />
-        <InfoRow icon="mail" label="Email" value={userInfo.email} />
-
-        <View style={styles.infoRow}>
-          <Feather name="phone" size={20} color="#6B7280" />
-          <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Phone</Text>
-
-            {isEditing ? (
-              <TextInput
-                value={phone}
-                onChangeText={(text: string) => setPhone(text)}
-                style={styles.input}
-              />
-            ) : (
-              <Text style={styles.infoValue}>
-                {userInfo.phone || 'Not set'}
-              </Text>
-            )}
+      {/* INFO CARD */}
+      <View style={styles.body}>
+        <Card style={{ overflow: 'hidden' }}>
+          <InfoRow icon="mail" label="Email" value={userInfo.email} />
+          <View style={styles.rowDivider} />
+          <View style={styles.infoRow}>
+            <View style={styles.infoIcon}><Feather name="phone" size={17} color={M.blue} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoLabel}>Téléphone</Text>
+              {isEditing ? (
+                <TextInput value={phone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" placeholderTextColor={M.textFaint} />
+              ) : (
+                <Text style={styles.infoValue}>{userInfo.phone || 'Non renseigné'}</Text>
+              )}
+            </View>
           </View>
-        </View>
+          <View style={styles.rowDivider} />
+          <InfoRow icon="briefcase" label="Rôle" value={userInfo.role} last />
+        </Card>
 
-        <InfoRow icon="briefcase" label="Role" value={userInfo.role} />
+        {!isEditing ? (
+          <Pressable style={styles.outlineBtn} onPress={() => setIsEditing(true)}>
+            <Feather name="edit-2" size={15} color={M.text} />
+            <Text style={styles.outlineTxt}>Modifier le téléphone</Text>
+          </Pressable>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
+            <Pressable style={[styles.outlineBtn, { flex: 1, marginTop: 0 }]} onPress={() => setIsEditing(false)}>
+              <Text style={styles.outlineTxt}>Annuler</Text>
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <GradientButton label="Enregistrer" onPress={handleSave} />
+            </View>
+          </View>
+        )}
+
+        <Pressable style={styles.logout} onPress={handleLogout}>
+          <Feather name="log-out" size={15} color={M.warm1} />
+          <Text style={styles.logoutTxt}>Se déconnecter</Text>
+        </Pressable>
       </View>
-
-      {/* Buttons */}
-      {!isEditing ? (
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => setIsEditing(true)}
-        >
-          <Text style={styles.buttonText}>Edit Phone</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.rowButtons}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.buttonText}>Save</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setIsEditing(false)}
-          >
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Logout */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Feather name="log-out" size={20} color="#FFFFFF" />
-        <Text style={styles.logoutButtonText}>Log Out</Text>
-      </TouchableOpacity>
-
     </ScrollView>
   );
 }
 
-/* COMPONENT */
-
-function InfoRow({ icon, label, value }: any) {
+function InfoRow({ icon, label, value, last }: any) {
   return (
-    <View style={styles.infoRow}>
-      <Feather name={icon} size={20} color="#6B7280" />
-      <View style={styles.infoContent}>
+    <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
+      <View style={styles.infoIcon}><Feather name={icon} size={17} color={M.blue} /></View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value || 'N/A'}</Text>
       </View>
@@ -249,98 +184,38 @@ function InfoRow({ icon, label, value }: any) {
   );
 }
 
-/* STYLES */
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  container: { flex: 1, backgroundColor: M.page },
   centered: { justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 20 },
+  loadingText: { marginTop: 12, fontSize: 14, color: M.textMut, fontFamily: fonts.body },
 
-  loadingText: { marginTop: 12, fontSize: 14, color: '#6B7280' },
-
-  header: { alignItems: 'center', marginBottom: 32, marginTop: 20 },
-
-  avatarContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    overflow: 'hidden',
+  hero: { overflow: 'hidden', alignItems: 'center', paddingTop: 44, paddingBottom: 44 },
+  avatarWrap: { width: 88, height: 88 },
+  avatarImg: { width: 88, height: 88, borderRadius: 44 },
+  avatarGrad: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+  camBadge: {
+    position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14,
+    backgroundColor: M.warm1, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: M.ink,
   },
+  name: { fontFamily: fonts.display, fontSize: 22, fontWeight: '700', color: '#fff', marginTop: 14 },
+  role: { fontSize: 12, color: M.onInkMut, marginTop: 3, fontFamily: fonts.body },
 
-  avatar: { width: '100%', height: '100%' },
+  body: { paddingHorizontal: 20, marginTop: -20 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
+  infoIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: M.page, alignItems: 'center', justifyContent: 'center' },
+  infoLabel: { fontSize: 11, color: M.textFaint, fontFamily: fonts.body },
+  infoValue: { fontSize: 15, color: M.text, fontWeight: '500', fontFamily: fonts.body },
+  rowDivider: { height: 1, backgroundColor: M.hair, marginHorizontal: 16 },
+  input: { borderWidth: 1, borderColor: M.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4, fontSize: 15, color: M.text, fontFamily: fonts.body },
 
-  title: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6B7280' },
-
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+  outlineBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 16,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: M.line, marginTop: 14,
   },
-
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+  outlineTxt: { fontSize: 15, fontWeight: '600', color: M.text, fontFamily: fonts.body },
+  logout: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 16,
+    backgroundColor: '#FBEBE7', marginTop: 12,
   },
-
-  infoContent: { marginLeft: 12, flex: 1 },
-  infoLabel: { fontSize: 12, color: '#6B7280' },
-  infoValue: { fontSize: 16, color: '#111827', fontWeight: '500' },
-
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 5,
-  },
-
-  editButton: {
-    backgroundColor: '#2563EB',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-
-  rowButtons: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
-  },
-
-  saveButton: {
-    flex: 1,
-    backgroundColor: '#16A34A',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#6B7280',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  buttonText: { color: '#FFFFFF', fontWeight: '600' },
-
-  logoutButton: {
-    backgroundColor: '#DC2626',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-
-  logoutButtonText: { color: '#FFFFFF', fontWeight: '600' },
+  logoutTxt: { fontSize: 14, fontWeight: '600', color: M.warm1, fontFamily: fonts.body },
 });

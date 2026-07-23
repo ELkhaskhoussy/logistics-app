@@ -1,18 +1,10 @@
-import React from "react";
-import {
-  Modal,
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-} from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { fonts, M } from '../../../constants/meridian';
 
-type Stop = {
-  id: string;
-  city: string;
-};
+type Stop = { id: string; city: string };
 
 type Props = {
   visible: boolean;
@@ -22,61 +14,66 @@ type Props = {
   onSelect: (index: number) => void;
 };
 
-const StopSelectorModal: React.FC<Props> = ({
-  visible,
-  onClose,
-  stops,
-  selectedIndex,
-  onSelect,
-}) => {
-  const renderItem = ({ item, index }: { item: Stop; index: number }) => {
-    const isSelected = index === selectedIndex;
+const StopSelectorModal: React.FC<Props> = ({ visible, onClose, stops, selectedIndex, onSelect }) => {
+  const [local, setLocal] = useState(selectedIndex);
+  useEffect(() => { setLocal(selectedIndex); }, [selectedIndex, visible]);
 
-    return (
-      <TouchableOpacity
-        style={[styles.item, isSelected && styles.selectedItem]}
-        onPress={() => onSelect(index)}
-      >
-        <View style={styles.itemRow}>
-          <Text style={[styles.text, isSelected && styles.selectedText]}>
-            {item.city}
-          </Text>
-
-          {isSelected && (
-            <Feather name="check-circle" size={18} color="#2563EB" />
-          )}
-        </View>
-      </TouchableOpacity>
-    );
+  const stepSub = (index: number) => {
+    if (index === 0) return 'Départ — trajet en cours';
+    if (index === stops.length - 1) return 'Destination finale atteinte';
+    return 'Point d\'étape';
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      {/* Overlay (click outside to close) */}
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}
-      >
-        {/* Prevent closing when clicking inside */}
-        <TouchableOpacity activeOpacity={1} style={styles.container}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={styles.sheet}>
           <View style={styles.handle} />
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Statut du trajet</Text>
+              <Text style={styles.sub}>Où en êtes-vous maintenant ?</Text>
+            </View>
+            <Pressable onPress={onClose}>
+              <Feather name="x" size={22} color={M.textFaint} />
+            </Pressable>
+          </View>
 
-          <Text style={styles.title}>Select Current Stop</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 380 }} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
+            {stops.map((item, index) => {
+              const active = index === local;
+              return (
+                <Pressable key={item.id} style={[styles.step, active && styles.stepActive]} onPress={() => setLocal(index)}>
+                  {active ? (
+                    <LinearGradient colors={[M.warm1, M.warm2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.stepIcon}>
+                      <Feather name="navigation" size={16} color="#fff" />
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.stepIconMuted}>
+                      <Feather name="map-pin" size={16} color={M.textFaint} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stepTitle}>{item.city}</Text>
+                    <Text style={styles.stepSub}>{stepSub(index)}</Text>
+                  </View>
+                  {active ? (
+                    <Feather name="check-circle" size={20} color={M.warm1} />
+                  ) : (
+                    <View style={styles.radio} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
 
-          <FlatList
-            data={stops}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 10 }}
-          />
-
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeText}>Cancel</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </TouchableOpacity>
+          <Pressable style={{ marginTop: 14 }} onPress={() => onSelect(local)}>
+            <LinearGradient colors={[M.warm1, M.warm2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.save}>
+              <Text style={styles.saveTxt}>Enregistrer le statut</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -84,63 +81,21 @@ const StopSelectorModal: React.FC<Props> = ({
 export default StopSelectorModal;
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  container: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "75%",
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    backgroundColor: "#D1D5DB",
-    borderRadius: 3,
-    alignSelf: "center",
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  item: {
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: "#F3F4F6",
-    marginBottom: 8,
-  },
-  selectedItem: {
-    backgroundColor: "#DBEAFE",
-    borderWidth: 1,
-    borderColor: "#2563EB",
-  },
-  itemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  text: {
-    fontSize: 14,
-    color: "#111827",
-  },
-  selectedText: {
-    color: "#2563EB",
-    fontWeight: "600",
-  },
-  closeButton: {
-    marginTop: 10,
-    padding: 12,
-    alignItems: "center",
-  },
-  closeText: {
-    color: "red",
-    fontWeight: "500",
-  },
+  overlay: { flex: 1, backgroundColor: 'rgba(10,22,38,0.55)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: M.surfaceAlt, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, maxHeight: '85%' },
+  handle: { width: 44, height: 4, borderRadius: 9999, backgroundColor: '#D6DBE3', alignSelf: 'center', marginBottom: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: '700', color: M.text, fontFamily: fonts.display },
+  sub: { fontSize: 13, color: M.textFaint, marginTop: 2, fontFamily: fonts.body },
+
+  step: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: M.line },
+  stepActive: { borderWidth: 1.5, borderColor: M.warm1 },
+  stepIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepIconMuted: { width: 40, height: 40, borderRadius: 12, backgroundColor: M.page, alignItems: 'center', justifyContent: 'center' },
+  stepTitle: { fontSize: 15, fontWeight: '700', color: M.text, fontFamily: fonts.display },
+  stepSub: { fontSize: 12, color: M.textFaint, marginTop: 2, fontFamily: fonts.body },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#D6DBE3' },
+
+  save: { height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  saveTxt: { color: '#fff', fontWeight: '600', fontSize: 15, fontFamily: fonts.body },
 });

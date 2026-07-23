@@ -1,250 +1,117 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Glow from '../../components/meridian/Glow';
+import GradientButton from '../../components/meridian/GradientButton';
+import InkField from '../../components/meridian/InkField';
+import { fonts, M } from '../../constants/meridian';
 
 export default function ResetPasswordScreen() {
-    const router = useRouter();
-    const { email } = useLocalSearchParams();
+  const router = useRouter();
+  const { email } = useLocalSearchParams();
 
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const handleResetPassword = async () => {
-        if (!password || !confirmPassword) {
-            Alert.alert("Error", "Please fill all fields");
-            return;
-        }
+  const score =
+    (password.length >= 6 ? 1 : 0) +
+    (password.length >= 10 ? 1 : 0) +
+    (/[A-Z]/.test(password) ? 1 : 0) +
+    (/[0-9]/.test(password) ? 1 : 0);
 
-        if (password !== confirmPassword) {
-            Alert.alert("Error", "Passwords do not match");
-            return;
-        }
+  const handleResetPassword = async () => {
+    setError(null);
+    if (!password || !confirm) {
+      setError('Veuillez remplir tous les champs.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:8080/users/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, newPassword: password }),
+      });
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err || 'Réinitialisation échouée.');
+      }
+      router.replace('/(auth)/login');
+    } catch (e: any) {
+      setError(e?.message || "Une erreur s'est produite.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        if (password.length < 6) {
-            Alert.alert("Error", "Password must be at least 6 characters");
-            return;
-        }
+  return (
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginBottom: 8 }}>
+          <Feather name="arrow-left" size={22} color="#fff" />
+        </Pressable>
 
-        try {
-            setLoading(true);
+        <View style={styles.hero}>
+          <Glow color="#38BDF8" size={150} style={{ left: -20, top: -20 }} />
+          <View style={styles.iconBox}>
+            <Feather name="lock" size={26} color={M.cool} />
+          </View>
+          <Text style={styles.h1}>New password</Text>
+          <Text style={styles.sub}>Make it strong — at least 8 characters.</Text>
+        </View>
 
-            const response = await fetch(
-                "http://localhost:8080/users/auth/reset-password",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email,
-                        newPassword: password,
-                    }),
-                }
-            );
+        <View style={styles.form}>
+          <InkField icon="lock" label="NEW PASSWORD" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
+          <InkField icon="check" label="CONFIRM PASSWORD" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
 
-            if (!response.ok) {
-                const err = await response.text();
-                throw new Error(err || "Reset failed");
-            }
+          <View style={styles.strength}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={[styles.seg, i < score ? styles.segOn : null]} />
+            ))}
+          </View>
 
-            Alert.alert("Success", "Password reset successfully");
+          {error ? (
+            <View style={styles.errorBox}>
+              <Feather name="alert-circle" size={14} color="#fff" />
+              <Text style={styles.errorTxt}>{error}</Text>
+            </View>
+          ) : null}
 
-            //  Redirect to login
-            router.replace("/(auth)/login");
-
-        } catch (error: any) {
-            Alert.alert("Error", error.message || "Something went wrong");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.card}>
-
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.logoContainer}>
-                            <Feather name="lock" size={32} color="#FFFFFF" />
-                        </View>
-                        <Text style={styles.title}>New Password</Text>
-                        <Text style={styles.description}>
-                            Enter your new password
-                        </Text>
-                    </View>
-
-                    {/* Content */}
-                    <View style={styles.content}>
-
-                        {/* Password */}
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>New Password</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="••••••••"
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry
-                            />
-                        </View>
-
-                        {/* Confirm Password */}
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Confirm Password</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="••••••••"
-                                value={confirmPassword}
-                                onChangeText={setConfirmPassword}
-                                secureTextEntry
-                            />
-                        </View>
-
-                        {/* Button */}
-                        <TouchableOpacity
-                            style={[styles.button, loading && styles.buttonDisabled]}
-                            onPress={handleResetPassword}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.buttonText}>Reset Password</Text>
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Back */}
-                        <TouchableOpacity onPress={() => router.back()}>
-                            <Text style={styles.backText}>
-                                Back
-                            </Text>
-                        </TouchableOpacity>
-
-                    </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
+          <GradientButton label="Update password" onPress={handleResetPassword} loading={loading} style={{ marginTop: 4 }} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB' },
-
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        padding: 16,
-    },
-
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        maxWidth: 448,
-        width: '100%',
-        alignSelf: 'center',
-    },
-
-    header: {
-        paddingTop: 24,
-        paddingHorizontal: 24,
-        paddingBottom: 8,
-        alignItems: 'center',
-    },
-
-    logoContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#2563EB',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-
-    title: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#111827',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-
-    description: {
-        fontSize: 14,
-        color: '#6B7280',
-        textAlign: 'center',
-    },
-
-    content: {
-        padding: 24,
-    },
-
-    inputGroup: {
-        marginBottom: 20,
-    },
-
-    label: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#374151',
-        marginBottom: 8,
-    },
-
-    input: {
-        height: 48,
-        borderWidth: 1,
-        borderColor: '#D1D5DB',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        fontSize: 16,
-        backgroundColor: '#FFFFFF',
-        color: '#111827',
-    },
-
-    button: {
-        backgroundColor: '#2563EB',
-        height: 48,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-
-    buttonDisabled: {
-        backgroundColor: '#9CA3AF',
-    },
-
-    backText: {
-        textAlign: 'center',
-        marginTop: 16,
-        color: '#2563EB',
-        fontSize: 14,
-        fontWeight: '500',
-    },
+  screen: { flex: 1, backgroundColor: M.ink },
+  scroll: { flexGrow: 1, backgroundColor: M.ink, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 34 },
+  hero: { overflow: 'hidden', marginTop: 6, marginBottom: 22 },
+  iconBox: {
+    width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  h1: { fontFamily: fonts.display, fontSize: 25, fontWeight: '700', color: '#fff', marginTop: 18, letterSpacing: -0.5 },
+  sub: { fontSize: 14, color: M.onInkMut, marginTop: 6, fontFamily: fonts.body },
+  form: { gap: 13 },
+  strength: { flexDirection: 'row', gap: 6, marginTop: 2 },
+  seg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)' },
+  segOn: { backgroundColor: M.green },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(236,91,67,0.15)', borderWidth: 1, borderColor: 'rgba(236,91,67,0.5)', borderRadius: 12, padding: 12,
+  },
+  errorTxt: { color: '#fff', fontSize: 13, flex: 1, fontFamily: fonts.body },
 });

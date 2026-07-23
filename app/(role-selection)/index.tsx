@@ -1,198 +1,145 @@
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Glow from '../../components/meridian/Glow';
+import GradientButton from '../../components/meridian/GradientButton';
+import { fonts, M } from '../../constants/meridian';
+import { clearGoogleUser, getGoogleUser } from '../../app/utils/tokenStorage';
 import { useAuth } from '../../scripts/context/AuthContext';
-import { getGoogleUser, clearGoogleUser } from '../../app/utils/tokenStorage';
 import { registerWithGoogle } from '../services/auth';
 
+type Role = 'SENDER' | 'TRANSPORTER';
+
 export default function RoleSelection() {
-    const router = useRouter();
-    const { login } = useAuth();
+  const router = useRouter();
+  const { login } = useAuth();
+  const [role, setRole] = useState<Role>('SENDER');
+  const [busy, setBusy] = useState(false);
 
-    const handleSelectRole = async (role: "SENDER" | "TRANSPORTER") => {
-        const googleUser = await getGoogleUser();
+  const handleContinue = async () => {
+    setBusy(true);
+    try {
+      const googleUser = await getGoogleUser();
 
-        // NORMAL FLOW
-        if (!googleUser) {
-            if (role === "SENDER") {
-                router.replace("/(auth)/register-sender");
-            } else {
-                router.replace("/(auth)/register-transporter");
-            }
-            return;
-        }
+      // Classic flow: go to the matching registration form.
+      if (!googleUser) {
+        router.replace(role === 'SENDER' ? '/(auth)/register-sender' : '/(auth)/register-transporter');
+        return;
+      }
 
-        // GOOGLE FLOW
+      // Google flow: register with the chosen role, then route.
+      const data = await registerWithGoogle({
+        email: googleUser.email,
+        firstName: googleUser.firstName,
+        lastName: googleUser.lastName,
+        imageUrl: googleUser.imageUrl,
+        role,
+      });
+      login(data);
 
+      if (role === 'TRANSPORTER') {
         try {
-            // Goes through apiClient so it uses the right base URL per environment
-            // (/api behind the prod proxy, localhost:8080 in dev) instead of a
-            // hardcoded localhost that breaks on phones and in production.
-            const data = await registerWithGoogle({
-                email: googleUser.email,
-                firstName: googleUser.firstName,
-                lastName: googleUser.lastName,
-                imageUrl: googleUser.imageUrl,
-                role,
-            });
-
-            login(data);
-
-            // Google transporters need a transporter profile too (same as classic registration),
-            // otherwise trip creation fails with 400 (no profile).
-            if (role === "TRANSPORTER") {
-                try {
-                    const { createTransporterProfile } = require('../services/trip');
-                    await createTransporterProfile(data.userId, {
-                        displayName:
-                            `${googleUser.firstName ?? ''} ${googleUser.lastName ?? ''}`.trim() ||
-                            googleUser.email,
-                        bio: '',
-                        pricingPerKg: 0,
-                    });
-                } catch (profileError) {
-                    console.error('⚠️ [ROLE-SELECT] Failed to create transporter profile:', profileError);
-                }
-            }
-
-            await clearGoogleUser();
-
-            if (role === "SENDER") {
-                router.replace("/(sender)/search");
-            } else {
-                router.replace("/(transporter)/dashboard");
-            }
-
-        } catch (error) {
-            console.error("Role selection error:", error);
+          const { createTransporterProfile } = require('../services/trip');
+          await createTransporterProfile(data.userId, {
+            displayName: `${googleUser.firstName ?? ''} ${googleUser.lastName ?? ''}`.trim() || googleUser.email,
+            bio: '',
+            pricingPerKg: 0,
+          });
+        } catch (profileError) {
+          console.error('⚠️ [ROLE-SELECT] Failed to create transporter profile:', profileError);
         }
-    };
+      }
 
-    return (
-        <View style={styles.minHScreen}>
-            <View style={styles.container}>
-                
-                {/* HEADER */}
-                <View style={styles.header}>
-                    <Text style={styles.h1}>How will you use the app?</Text>
-                    <Text style={styles.subtitle}>
-                        Choose your account type to continue
-                    </Text>
-                </View>
+      await clearGoogleUser();
+      router.replace(role === 'SENDER' ? '/(sender)/search' : '/(transporter)/dashboard');
+    } catch (error) {
+      console.error('Role selection error:', error);
+    } finally {
+      setBusy(false);
+    }
+  };
 
-                {/* CARDS */}
-                <View style={styles.grid}>
-                    
-                    {/* Sender */}
-                    <TouchableOpacity
-                        style={styles.card}
-                        onPress={() => handleSelectRole("SENDER")}
-                        activeOpacity={0.8}
-                    >
-                        <View style={styles.iconContainer}>
-                            <Feather name="package" size={40} color="#2563EB" />
-                        </View>
+  return (
+    <ScrollView contentContainerStyle={styles.scroll}>
+      <View style={styles.head}>
+        <Glow color="#EC5B43" size={180} style={{ left: 40, top: -40 }} />
+        <Text style={styles.h1}>How will you{'\n'}use Sendlo?</Text>
+        <Text style={styles.sub}>Pick a role — switch anytime.</Text>
+      </View>
 
-                        <Text style={styles.cardTitle}>
-                            I want to Send Packages
-                        </Text>
+      <View style={styles.cards}>
+        <RoleCard
+          active={role === 'SENDER'}
+          icon="package"
+          title="I'm a Sender"
+          desc="Find travellers and send parcels across the sea."
+          onPress={() => setRole('SENDER')}
+        />
+        <RoleCard
+          active={role === 'TRANSPORTER'}
+          icon="truck"
+          title="I'm a Transporter"
+          desc="Post trips and earn carrying parcels."
+          onPress={() => setRole('TRANSPORTER')}
+        />
+        <GradientButton label="Continue" icon="arrow-right" onPress={handleContinue} loading={busy} style={{ marginTop: 6 }} />
+      </View>
+    </ScrollView>
+  );
+}
 
-                        <Text style={styles.cardDescription}>
-                            Find reliable transporters for your shipments
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* Transporter */}
-                    <TouchableOpacity
-                        style={styles.card}
-                        onPress={() => handleSelectRole("TRANSPORTER")}
-                        activeOpacity={0.8}
-                    >
-                        <View style={styles.iconContainer}>
-                            <Feather name="truck" size={40} color="#2563EB" />
-                        </View>
-
-                        <Text style={styles.cardTitle}>
-                            I am a Transporter
-                        </Text>
-
-                        <Text style={styles.cardDescription}>
-                            Offer your transport services and earn money
-                        </Text>
-                    </TouchableOpacity>
-
-                </View>
-            </View>
-        </View>
-    );
+function RoleCard({
+  active,
+  icon,
+  title,
+  desc,
+  onPress,
+}: {
+  active: boolean;
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  desc: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[styles.card, active && styles.cardActive]}>
+      <View style={styles.cardTop}>
+        {active ? (
+          <LinearGradient colors={['#EC5B43', '#F5A623']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardIcon}>
+            <Feather name={icon} size={24} color="#fff" />
+          </LinearGradient>
+        ) : (
+          <View style={styles.cardIconMuted}>
+            <Feather name={icon} size={24} color={M.onInkMut} />
+          </View>
+        )}
+        <Feather name={active ? 'check-circle' : 'circle'} size={22} color={active ? '#EC5B43' : '#3A465A'} />
+      </View>
+      <Text style={[styles.cardTitle, !active && { color: '#DDE3EC' }]}>{title}</Text>
+      <Text style={styles.cardDesc}>{desc}</Text>
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
-    minHScreen: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        backgroundColor: "#F9FAFB",
-    },
-    container: {
-        width: "100%",
-        maxWidth: 600,
-        gap: 24,
-    },
-    header: {
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 20,
-    },
-    h1: {
-        fontSize: 28,
-        fontWeight: "bold",
-        color: "#111827",
-        textAlign: "center",
-    },
-    subtitle: {
-        color: "#6B7280",
-        textAlign: "center",
-        fontSize: 16,
-    },
-    grid: {
-        gap: 16,
-    },
-    card: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "#E5E7EB",
-        padding: 20,
-        alignItems: "center",
-
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    iconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: "rgba(37, 99, 235, 0.1)",
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: 16,
-    },
-    cardTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#111827",
-        textAlign: "center",
-        marginBottom: 6,
-    },
-    cardDescription: {
-        fontSize: 14,
-        color: "#6B7280",
-        textAlign: "center",
-    },
+  scroll: { flexGrow: 1, backgroundColor: M.ink, paddingHorizontal: 22, paddingTop: 40, paddingBottom: 34 },
+  head: { overflow: 'hidden', marginBottom: 22 },
+  h1: { fontFamily: fonts.display, fontSize: 28, fontWeight: '700', color: '#fff', lineHeight: 32, letterSpacing: -0.5 },
+  sub: { fontSize: 14, color: M.onInkMut, marginTop: 10, fontFamily: fonts.body },
+  cards: { gap: 14 },
+  card: {
+    borderRadius: 20,
+    padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  cardActive: { backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1.5, borderColor: '#EC5B43' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardIcon: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  cardIconMuted: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' },
+  cardTitle: { fontFamily: fonts.display, fontSize: 19, fontWeight: '700', color: '#fff', marginTop: 14 },
+  cardDesc: { fontSize: 13, color: M.onInkMut, marginTop: 4, lineHeight: 20, fontFamily: fonts.body },
 });

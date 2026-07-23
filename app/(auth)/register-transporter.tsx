@@ -1,207 +1,112 @@
 import { Feather } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
-import { registerUser } from '../services/auth';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import GradientButton from '../../components/meridian/GradientButton';
+import InkField from '../../components/meridian/InkField';
+import { fonts, M } from '../../constants/meridian';
 import { useAuth } from '../../scripts/context/AuthContext';
+import { registerUser } from '../services/auth';
 
 export default function RegisterTransporterScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  // Captured for the upcoming transporter-details backend fields (vehicle / capacity).
+  const [vehicle, setVehicle] = useState('');
+  const [maxKg, setMaxKg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSignUp = async () => {
-    // Validate required fields
-    if (!formData.name || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all fields!');
+    setError(null);
+    if (!name || !email || !password) {
+      setError('Veuillez remplir tous les champs.');
       return;
     }
-
-    // Validate password match
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match!');
+    if (password !== confirm) {
+      setError('Les mots de passe ne correspondent pas.');
       return;
     }
-
-    // Validate password length
-    if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters!');
+    if (password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères.');
       return;
     }
-
     setLoading(true);
     try {
-      // Split name into firstName and lastName for backend
-      const nameParts = formData.name.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || nameParts[0]; // Use first name as last name if only one word
-
-      const response = await registerUser({
-        firstName,
-        lastName,
-        email: formData.email,
-        password: formData.password,
-        role: 'TRANSPORTER',
-      });
-
-
-      console.log('✅ [TRANSPORTER-REG] Registration successful:', response);
-
-      // Update AuthContext state (and save to localStorage)
+      const parts = name.trim().split(' ').filter(Boolean);
+      const firstName = parts[0] || '';
+      const lastName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
+      const response = await registerUser({ firstName, lastName, email, password, role: 'TRANSPORTER' });
       login(response);
 
-      console.log('✅ [TRANSPORTER-REG] Auto-login complete');
-
-      // Create default transporter profile
+      // Create default transporter profile (don't block login if it fails)
       try {
         const { createTransporterProfile } = require('../services/trip');
         await createTransporterProfile(response.userId, {
-          displayName: `${firstName} ${lastName}`,
+          displayName: `${firstName} ${lastName}`.trim(),
           bio: '',
           pricingPerKg: 0,
         });
-        console.log('✅ [TRANSPORTER-REG] Transporter profile created');
       } catch (profileError) {
         console.error('⚠️ [TRANSPORTER-REG] Failed to create transporter profile:', profileError);
-        // Don't block login if profile creation fails
       }
 
-      console.log('✅ [TRANSPORTER-REG] Navigating to dashboard...');
-
-      // Navigate directly to transporter home screen
       router.replace('/(transporter)/dashboard' as any);
-    } catch (error: any) {
-      console.error('Registration failed:', error);
-      Alert.alert('Registration Failed', error.message || 'An error occurred');
+    } catch (e: any) {
+      setError(e?.message || "Une erreur s'est produite.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.card}>
-          {/* Logo/Icon Section */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Feather name="truck" size={32} color="#FFFFFF" />
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.top}>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Feather name="arrow-left" size={22} color="#fff" />
+          </Pressable>
+          <Text style={styles.kicker}>TRANSPORTER SIGN-UP</Text>
+        </View>
+
+        <Text style={styles.title}>Become a{'\n'}traveller</Text>
+
+        <View style={styles.form}>
+          <InkField icon="user" label="FULL NAME" value={name} onChangeText={setName} placeholder="Leïla Trabelsi" autoCapitalize="words" />
+          <InkField icon="mail" label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <InkField icon="truck" label="VEHICLE" value={vehicle} onChangeText={setVehicle} placeholder="Van" autoCapitalize="words" />
             </View>
-            <Text style={styles.title}>Transporter Registration</Text>
-            <Text style={styles.description}>Create your transporter account</Text>
-          </View>
-
-          {/* Form Section */}
-          <View style={styles.content}>
-            <View style={styles.form}>
-              {/* Full Name Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="John Doe"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.name}
-                  onChangeText={(text) => setFormData({ ...formData, name: text })}
-                  autoCapitalize="words"
-                  autoComplete="name"
-                />
-              </View>
-
-              {/* Email Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="you@example.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.email}
-                  onChangeText={(text) => setFormData({ ...formData, email: text })}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
-
-              {/* Password Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.password}
-                  onChangeText={(text) => setFormData({ ...formData, password: text })}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password"
-                />
-              </View>
-
-              {/* Confirm Password Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Confirm Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.confirmPassword}
-                  onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password"
-                />
-              </View>
-
-              {/* Create Account Button */}
-              <TouchableOpacity
-                style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
-                onPress={handleSignUp}
-                activeOpacity={0.8}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.signUpButtonText}>Create Account</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Sign In Link */}
-            <View style={styles.signInContainer}>
-              <Link href="/login" asChild>
-                <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={styles.signInText}>
-                    Already have an account? <Text style={styles.signInLink}>Sign in</Text>
-                  </Text>
-                </TouchableOpacity>
-              </Link>
+            <View style={{ flex: 1 }}>
+              <InkField icon="box" label="MAX KG" value={maxKg} onChangeText={setMaxKg} placeholder="25" keyboardType="number-pad" />
             </View>
           </View>
+          <InkField icon="lock" label="PASSWORD" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
+          <InkField icon="lock" label="CONFIRM PASSWORD" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Feather name="alert-circle" size={14} color="#fff" />
+              <Text style={styles.errorTxt}>{error}</Text>
+            </View>
+          ) : null}
+
+          <GradientButton label="Create account" onPress={handleSignUp} loading={loading} style={{ marginTop: 4 }} />
+        </View>
+
+        <View style={styles.signin}>
+          <Text style={styles.signinTxt}>Already registered? </Text>
+          <Link href="/login" asChild>
+            <Pressable hitSlop={6}>
+              <Text style={styles.signinLink}>Sign in</Text>
+            </Pressable>
+          </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -209,205 +114,19 @@ export default function RegisterTransporterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
+  screen: { flex: 1, backgroundColor: M.ink },
+  scroll: { flexGrow: 1, backgroundColor: M.ink, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 34 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 },
+  kicker: { fontFamily: fonts.display, fontSize: 13, fontWeight: '600', color: M.cool, letterSpacing: 0.6, textTransform: 'uppercase' },
+  title: { fontFamily: fonts.display, fontSize: 26, fontWeight: '700', color: '#fff', lineHeight: 30, letterSpacing: -0.5, marginTop: 10, marginBottom: 22 },
+  form: { gap: 13 },
+  row: { flexDirection: 'row', gap: 12 },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(236,91,67,0.15)', borderWidth: 1, borderColor: 'rgba(236,91,67,0.5)', borderRadius: 12, padding: 12,
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    maxWidth: 448,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  header: {
-    paddingTop: 24,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-    alignItems: 'center',
-  },
-  logoContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  content: {
-    padding: 24,
-  },
-  form: {
-    gap: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    color: '#111827',
-  },
-  pickerButton: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-  },
-  pickerButtonText: {
-    fontSize: 16,
-    color: '#111827',
-  },
-  placeholderText: {
-    color: '#9CA3AF',
-  },
-  signUpButton: {
-    backgroundColor: '#2563EB',
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  signUpButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.7,
-  },
-  signUpButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    paddingHorizontal: 8,
-    fontSize: 12,
-    color: '#6B7280',
-    textTransform: 'uppercase',
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    backgroundColor: 'transparent',
-  },
-  googleIcon: {
-    marginRight: 8,
-  },
-  googleButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  signInContainer: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  signInText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  signInLink: {
-    color: '#2563EB',
-    fontWeight: '500',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    width: '85%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  selectedOption: {
-    backgroundColor: '#EFF6FF',
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: '#111827',
-  },
-  selectedOptionText: {
-    color: '#2563EB',
-    fontWeight: '600',
-  },
+  errorTxt: { color: '#fff', fontSize: 13, flex: 1, fontFamily: fonts.body },
+  signin: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
+  signinTxt: { color: M.onInkMut, fontSize: 13, fontFamily: fonts.body },
+  signinLink: { color: M.warm2, fontSize: 13, fontWeight: '600', fontFamily: fonts.body },
 });
