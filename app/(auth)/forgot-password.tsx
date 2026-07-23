@@ -1,229 +1,86 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Glow from '../../components/meridian/Glow';
+import GradientButton from '../../components/meridian/GradientButton';
+import InkField from '../../components/meridian/InkField';
+import { fonts, M } from '../../constants/meridian';
 
 export default function ForgotPasswordScreen() {
-    const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const handleSendCode = async () => {
-        if (!email) {
-            Alert.alert('Error', 'Please enter your email');
-            return;
-        }
+  const handleSendCode = async () => {
+    setError(null);
+    if (!email) {
+      setError('Veuillez saisir votre email.');
+      return;
+    }
+    try {
+      setLoading(true);
+      // NOTE: hardcoded localhost — pre-existing; needs to go through the API client for prod/mobile.
+      const response = await fetch('http://localhost:8080/users/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!response.ok) throw new Error("Impossible d'envoyer le code.");
+      router.push({ pathname: '/verify-code', params: { email } });
+    } catch (e: any) {
+      setError(e?.message || "Une erreur s'est produite.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        try {
-            setLoading(true);
+  return (
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginBottom: 8 }}>
+          <Feather name="arrow-left" size={22} color="#fff" />
+        </Pressable>
 
-            const response = await fetch(
-                "http://localhost:8080/users/auth/forgot-password",
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email }),
-                }
-            );
+        <View style={styles.hero}>
+          <Glow color="#38BDF8" size={150} style={{ right: -20, top: -30 }} />
+          <View style={styles.iconBox}>
+            <Feather name="key" size={26} color={M.cool} />
+          </View>
+          <Text style={styles.h1}>Reset password</Text>
+          <Text style={styles.sub}>Enter your email and we'll send a recovery code.</Text>
+        </View>
 
-            if (!response.ok) {
-                throw new Error("Failed to send code");
-            }
-
-            Alert.alert("Success", "Verification code sent to your email");
-
-          
-            router.push({
-                pathname: "/verify-code",
-                params: { email }
-            });
-
-        } catch (error: any) {
-            Alert.alert("Error", error.message || "Something went wrong");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.card}>
-
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.logoContainer}>
-                            <Feather name="package" size={32} color="#FFFFFF" />
-                        </View>
-                        <Text style={styles.title}>Reset Password</Text>
-                        <Text style={styles.description}>
-                            Enter your email to receive a verification code
-                        </Text>
-                    </View>
-
-                    {/* Content */}
-                    <View style={styles.content}>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Email</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="you@example.com"
-                                placeholderTextColor="#9CA3AF"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                            />
-                        </View>
-
-                        {/* Button */}
-                        <TouchableOpacity
-                            style={[styles.button, loading && styles.buttonDisabled]}
-                            onPress={handleSendCode}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.buttonText}>Send Code</Text>
-                            )}
-                        </TouchableOpacity>
-
-                        {/* Back to Login */}
-                        <TouchableOpacity onPress={() => router.back()}>
-                            <Text style={styles.backText}>
-                                Back to login
-                            </Text>
-                        </TouchableOpacity>
-
-                    </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
+        <View style={styles.form}>
+          <InkField icon="mail" label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
+          {error ? (
+            <View style={styles.errorBox}>
+              <Feather name="alert-circle" size={14} color="#fff" />
+              <Text style={styles.errorTxt}>{error}</Text>
+            </View>
+          ) : null}
+          <GradientButton label="Send recovery code" onPress={handleSendCode} loading={loading} style={{ marginTop: 4 }} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F9FAFB',
-    },
-
-    scrollContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        padding: 16,
-    },
-
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        maxWidth: 448,
-        width: '100%',
-        alignSelf: 'center',
-    },
-
-    header: {
-        paddingTop: 24,
-        paddingHorizontal: 24,
-        paddingBottom: 8,
-        alignItems: 'center',
-    },
-
-    logoContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#2563EB',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-
-    title: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#111827',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-
-    description: {
-        fontSize: 14,
-        color: '#6B7280',
-        textAlign: 'center',
-    },
-
-    content: {
-        padding: 24,
-    },
-
-    inputGroup: {
-        marginBottom: 20,
-    },
-
-    label: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#374151',
-        marginBottom: 8,
-    },
-
-    input: {
-        height: 48,
-        borderWidth: 1,
-        borderColor: '#D1D5DB',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        fontSize: 16,
-        backgroundColor: '#FFFFFF',
-        color: '#111827',
-    },
-
-    button: {
-        backgroundColor: '#2563EB',
-        height: 48,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 8,
-    },
-
-    buttonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-
-    buttonDisabled: {
-        backgroundColor: '#9CA3AF',
-    },
-
-    backText: {
-        textAlign: 'center',
-        marginTop: 16,
-        color: '#2563EB',
-        fontSize: 14,
-        fontWeight: '500',
-    },
+  screen: { flex: 1, backgroundColor: M.ink },
+  scroll: { flexGrow: 1, backgroundColor: M.ink, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 34 },
+  hero: { overflow: 'hidden', marginTop: 6, marginBottom: 22 },
+  iconBox: {
+    width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  h1: { fontFamily: fonts.display, fontSize: 25, fontWeight: '700', color: '#fff', marginTop: 18, letterSpacing: -0.5 },
+  sub: { fontSize: 14, color: M.onInkMut, marginTop: 6, lineHeight: 20, fontFamily: fonts.body },
+  form: { gap: 14 },
+  errorBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(236,91,67,0.15)', borderWidth: 1, borderColor: 'rgba(236,91,67,0.5)', borderRadius: 12, padding: 12,
+  },
+  errorTxt: { color: '#fff', fontSize: 13, flex: 1, fontFamily: fonts.body },
 });

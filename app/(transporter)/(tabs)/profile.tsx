@@ -1,27 +1,16 @@
-import { Feather } from "@expo/vector-icons";
-import { useRouter, useFocusEffect } from "expo-router";
-import React, { useState, useCallback } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  TextInput,
-  Image,
-} from "react-native";
-
-import { useAuth } from "../../../scripts/context/AuthContext";
-import { getUserById } from "../../services/user";
-import {
-  fetchTransporterProfile,
-  updateTransporterProfile,
-  createTransporterProfile,
-} from "../../services/trip";
-
-import * as ImagePicker from "expo-image-picker";
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Card from '../../../components/meridian/Card';
+import Glow from '../../../components/meridian/Glow';
+import GradientButton from '../../../components/meridian/GradientButton';
+import { fonts, M } from '../../../constants/meridian';
+import { useAuth } from '../../../scripts/context/AuthContext';
+import { getUserById } from '../../services/user';
+import { createTransporterProfile, fetchTransporterProfile, updateTransporterProfile } from '../../services/trip';
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
@@ -32,112 +21,49 @@ export default function TransporterProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const [userInfo, setUserInfo] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    role: "",
-    bio: "",
-    vehicleType: "",
-    licensePlate: "",
-    imageUrl: "",
-  });
-
-  const [formData, setFormData] = useState({
-    bio: "",
-    vehicleType: "",
-    licensePlate: "",
-  });
+  const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', email: '', role: '', bio: '', vehicleType: '', licensePlate: '', imageUrl: '' });
+  const [formData, setFormData] = useState({ bio: '', vehicleType: '', licensePlate: '' });
 
   useFocusEffect(
     useCallback(() => {
-      if (!authLoading && userId) {
-        loadUserInfo();
-      }
+      if (!authLoading && userId) loadUserInfo();
     }, [authLoading, userId])
   );
 
   const loadUserInfo = async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    if (role !== "TRANSPORTER") {
-      setLoading(false);
-      router.replace("/(sender)/profile" as any);
-      return;
-    }
-
+    if (!userId) { setLoading(false); return; }
+    if (role !== 'TRANSPORTER') { setLoading(false); router.replace('/(sender)/profile' as any); return; }
     try {
-      // STEP 1: instant user load
       const userData = await getUserById(Number(userId));
-
       const baseData = {
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        role,
-        bio: "",
-        vehicleType: "",
-        licensePlate: "",
-        imageUrl: userData.imageUrl || "",
+        firstName: userData.firstName, lastName: userData.lastName, email: userData.email, role,
+        bio: '', vehicleType: '', licensePlate: '', imageUrl: userData.imageUrl || '',
       };
-
       setUserInfo(baseData);
-
-      // prevent image override during upload
-      if (!isUploading) {
-        setImage(baseData.imageUrl);
-      }
-
-      setFormData({
-        bio: "",
-        vehicleType: "",
-        licensePlate: "",
-      });
-
+      if (!isUploading) setImage(baseData.imageUrl);
+      setFormData({ bio: '', vehicleType: '', licensePlate: '' });
       setLoading(false);
 
-      // STEP 2: background fetch
       fetchTransporterProfile(Number(userId))
         .then((transporter) => {
           if (!transporter) return;
-
-          const updated = {
-            ...baseData,
-            bio: transporter.bio || "",
-            vehicleType: transporter.vehicleType || "",
-            licensePlate: transporter.licensePlate || "",
-          };
-
+          const updated = { ...baseData, bio: transporter.bio || '', vehicleType: transporter.vehicleType || '', licensePlate: transporter.licensePlate || '' };
           setUserInfo(updated);
-          setFormData({
-            bio: updated.bio,
-            vehicleType: updated.vehicleType,
-            licensePlate: updated.licensePlate,
-          });
+          setFormData({ bio: updated.bio, vehicleType: updated.vehicleType, licensePlate: updated.licensePlate });
         })
-        .catch(() => {
-          console.log("Transporter profile not found");
-        });
-
+        .catch(() => console.log('Transporter profile not found'));
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Could not load profile");
+      Alert.alert('Error', 'Could not load profile');
       setLoading(false);
     }
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
-
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      setImage(uri); // instant preview
+      setImage(uri);
       uploadImage(uri);
     }
   };
@@ -145,35 +71,17 @@ export default function TransporterProfileScreen() {
   const uploadImage = async (uri: string) => {
     try {
       setIsUploading(true);
-
       const formData = new FormData();
-
-      formData.append("file", {
-        uri,
-        name: "profile.jpg",
-        type: "image/jpeg",
-      } as any);
-
-      const response = await fetch(
-        `http://localhost:8080/users/${userId}/upload-profile-photo`,
-        {
-          method: "POST",
-          body: formData,
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
+      formData.append('file', { uri, name: 'profile.jpg', type: 'image/jpeg' } as any);
+      const response = await fetch(`http://localhost:8080/users/${userId}/upload-profile-photo`, {
+        method: 'POST', body: formData, headers: { 'Content-Type': 'multipart/form-data' },
+      });
       const photoUrl = await response.text();
-
       setImage(photoUrl);
-
-      Alert.alert("Success", "Profile photo updated");
-
+      Alert.alert('Success', 'Profile photo updated');
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Upload failed");
+      Alert.alert('Error', 'Upload failed');
     } finally {
       setIsUploading(false);
     }
@@ -182,260 +90,149 @@ export default function TransporterProfileScreen() {
   const handleSave = async () => {
     const numericUserId = Number(userId);
     if (!numericUserId) return;
-
     try {
       try {
-        // Try update first (profile already exists)
         await updateTransporterProfile(numericUserId, formData);
       } catch {
-        // Profile doesn't exist yet — create it
         await createTransporterProfile(numericUserId, {
           displayName: `${userInfo.firstName} ${userInfo.lastName}`.trim(),
-          bio: formData.bio,
-          vehicleType: formData.vehicleType,
-          licensePlate: formData.licensePlate,
-          pricingPerKg: 0,
+          bio: formData.bio, vehicleType: formData.vehicleType, licensePlate: formData.licensePlate, pricingPerKg: 0,
         });
       }
-
-      Alert.alert("Success", "Profile updated");
+      Alert.alert('Success', 'Profile updated');
       setIsEditing(false);
       loadUserInfo();
-
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to update profile");
+      Alert.alert('Error', 'Failed to update profile');
     }
   };
 
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+        <ActivityIndicator size="large" color={M.warm1} />
+        <Text style={styles.loadingText}>Chargement du profil…</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      
-      <View style={styles.header}>
-        <TouchableOpacity onPress={pickImage} disabled={isUploading}>
-          <View style={styles.avatarContainer}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.avatar} />
-            ) : (
-              <Feather name="truck" size={48} color="#FFFFFF" />
-            )}
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* HERO */}
+      <View style={styles.hero}>
+        <LinearGradient colors={[M.inkHi, M.ink]} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Glow color="#EC5B43" size={200} style={{ alignSelf: 'center', top: -20 }} />
+        <Pressable onPress={pickImage} disabled={isUploading} style={styles.avatarWrap}>
+          {image ? (
+            <Image source={{ uri: image }} style={styles.avatarImg} />
+          ) : (
+            <LinearGradient colors={[M.warm1, M.warm2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatarGrad}>
+              <Feather name="truck" size={36} color="#fff" />
+            </LinearGradient>
+          )}
+          <View style={styles.camBadge}>
+            {isUploading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="camera" size={13} color="#fff" />}
           </View>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Transporter Profile</Text>
-        <Text style={styles.subtitle}>Tap image to change</Text>
-      </View>
-
-      <View style={styles.card}>
-        <InfoRow icon="user" label="First Name" value={userInfo.firstName} />
-        <InfoRow icon="user" label="Last Name" value={userInfo.lastName} />
-        <InfoRow icon="mail" label="Email" value={userInfo.email} />
-        <InfoRow icon="briefcase" label="Role" value={userInfo.role} />
-
-        <EditableRow
-          label="Bio"
-          value={formData.bio}
-          isEditing={isEditing}
-          onChange={(text: string) =>
-            setFormData({ ...formData, bio: text })
-          }
-        />
-
-        <EditableRow
-          label="Vehicle Type"
-          value={formData.vehicleType}
-          isEditing={isEditing}
-          onChange={(text: string) =>
-            setFormData({ ...formData, vehicleType: text })
-          }
-        />
-
-        <EditableRow
-          label="License Plate"
-          value={formData.licensePlate}
-          isEditing={isEditing}
-          onChange={(text: string) =>
-            setFormData({ ...formData, licensePlate: text })
-          }
-        />
-      </View>
-
-      {!isEditing ? (
-        <TouchableOpacity
-          style={styles.editButton}
-          onPress={() => setIsEditing(true)}
-        >
-          <Text style={styles.buttonText}>Edit Profile</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.rowButtons}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.buttonText}>Save</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setIsEditing(false)}
-          >
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
+        </Pressable>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{userInfo.firstName} {userInfo.lastName}</Text>
+          <Feather name="check-circle" size={16} color={M.cool} />
         </View>
-      )}
+        <Text style={styles.role}>Transporteur vérifié</Text>
+      </View>
 
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={() => {
-          logout();
-          router.replace("/(auth)/login" as any);
-        }}
-      >
-        <Feather name="log-out" size={20} color="#FFFFFF" />
-        <Text style={styles.logoutButtonText}>Log Out</Text>
-      </TouchableOpacity>
+      {/* BODY */}
+      <View style={styles.body}>
+        <Card style={{ overflow: 'hidden' }}>
+          <Row icon="mail" label="Email" value={userInfo.email} />
+          <View style={styles.divider} />
+          <Row icon="briefcase" label="Rôle" value={userInfo.role} />
+          <View style={styles.divider} />
+          <EditRow label="Bio" icon="file-text" value={formData.bio} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, bio: t })} />
+          <View style={styles.divider} />
+          <EditRow label="Véhicule" icon="truck" value={formData.vehicleType} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, vehicleType: t })} />
+          <View style={styles.divider} />
+          <EditRow label="Plaque" icon="hash" value={formData.licensePlate} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, licensePlate: t })} last />
+        </Card>
 
+        {!isEditing ? (
+          <Pressable style={styles.outlineBtn} onPress={() => setIsEditing(true)}>
+            <Feather name="edit-2" size={15} color={M.text} />
+            <Text style={styles.outlineTxt}>Modifier le profil</Text>
+          </Pressable>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
+            <Pressable style={[styles.outlineBtn, { flex: 1, marginTop: 0 }]} onPress={() => setIsEditing(false)}>
+              <Text style={styles.outlineTxt}>Annuler</Text>
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <GradientButton label="Enregistrer" onPress={handleSave} />
+            </View>
+          </View>
+        )}
+
+        <Pressable style={styles.logout} onPress={() => { logout(); router.replace('/(auth)/login' as any); }}>
+          <Feather name="log-out" size={15} color={M.warm1} />
+          <Text style={styles.logoutTxt}>Se déconnecter</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
 
-/* COMPONENTS */
-
-function InfoRow({ icon, label, value }: any) {
+function Row({ icon, label, value }: any) {
   return (
     <View style={styles.infoRow}>
-      <Feather name={icon} size={20} color="#6B7280" />
-      <View style={styles.infoContent}>
+      <View style={styles.infoIcon}><Feather name={icon} size={17} color={M.blue} /></View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value || "N/A"}</Text>
+        <Text style={styles.infoValue}>{value || 'N/A'}</Text>
       </View>
     </View>
   );
 }
 
-function EditableRow({ label, value, isEditing, onChange }: any) {
+function EditRow({ icon, label, value, isEditing, onChange, last }: any) {
   return (
-    <View style={styles.infoRow}>
-      <View style={styles.infoContent}>
+    <View style={[styles.infoRow, last && { borderBottomWidth: 0 }]}>
+      <View style={styles.infoIcon}><Feather name={icon} size={17} color={M.blue} /></View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.infoLabel}>{label}</Text>
         {isEditing ? (
-          <TextInput
-            value={value}
-            onChangeText={onChange}
-            style={styles.input}
-          />
+          <TextInput value={value} onChangeText={onChange} style={styles.input} placeholderTextColor={M.textFaint} />
         ) : (
-          <Text style={styles.infoValue}>{value || "N/A"}</Text>
+          <Text style={styles.infoValue}>{value || 'N/A'}</Text>
         )}
       </View>
     </View>
   );
 }
 
-/* STYLES */
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
-  centered: { justifyContent: "center", alignItems: "center" },
-  content: { padding: 20 },
+  container: { flex: 1, backgroundColor: M.page },
+  centered: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, fontSize: 14, color: M.textMut, fontFamily: fonts.body },
 
-  header: { alignItems: "center", marginBottom: 32, marginTop: 20 },
+  hero: { overflow: 'hidden', alignItems: 'center', paddingTop: 44, paddingBottom: 44 },
+  avatarWrap: { width: 88, height: 88 },
+  avatarImg: { width: 88, height: 88, borderRadius: 44 },
+  avatarGrad: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' },
+  camBadge: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: M.warm1, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: M.ink },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+  name: { fontFamily: fonts.display, fontSize: 22, fontWeight: '700', color: '#fff' },
+  role: { fontSize: 12, color: M.onInkMut, marginTop: 3, fontFamily: fonts.body },
 
-  avatarContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    overflow: "hidden",
-  },
+  body: { paddingHorizontal: 20, marginTop: -20 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
+  infoIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: M.page, alignItems: 'center', justifyContent: 'center' },
+  infoLabel: { fontSize: 11, color: M.textFaint, fontFamily: fonts.body },
+  infoValue: { fontSize: 15, color: M.text, fontWeight: '500', fontFamily: fonts.body },
+  divider: { height: 1, backgroundColor: M.hair, marginHorizontal: 16 },
+  input: { borderWidth: 1, borderColor: M.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginTop: 4, fontSize: 15, color: M.text, fontFamily: fonts.body },
 
-  avatar: {
-    width: "100%",
-    height: "100%",
-  },
-
-  title: { fontSize: 24, fontWeight: "bold", color: "#111827" },
-  subtitle: { fontSize: 14, color: "#6B7280" },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-  },
-
-  infoRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-
-  infoContent: { marginLeft: 12 },
-  infoLabel: { fontSize: 12, color: "#6B7280" },
-  infoValue: { fontSize: 16, color: "#111827", fontWeight: "500" },
-
-  input: {
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 5,
-  },
-
-  editButton: {
-    backgroundColor: "#2563EB",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  rowButtons: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
-  },
-
-  saveButton: {
-    flex: 1,
-    backgroundColor: "#16A34A",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#6B7280",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-
-  buttonText: { color: "#FFFFFF", fontWeight: "600" },
-
-  logoutButton: {
-    backgroundColor: "#DC2626",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
-
-  logoutButtonText: { color: "#FFFFFF", fontWeight: "600" },
-
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#6B7280",
-  },
+  outlineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: M.line, marginTop: 14 },
+  outlineTxt: { fontSize: 15, fontWeight: '600', color: M.text, fontFamily: fonts.body },
+  logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 16, backgroundColor: '#FBEBE7', marginTop: 12 },
+  logoutTxt: { fontSize: 14, fontWeight: '600', color: M.warm1, fontFamily: fonts.body },
 });

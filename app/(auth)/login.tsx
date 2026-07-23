@@ -1,378 +1,240 @@
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import Glow from '../../components/meridian/Glow';
+import GradientButton from '../../components/meridian/GradientButton';
+import InkField from '../../components/meridian/InkField';
+import RouteArc from '../../components/meridian/RouteArc';
+import { fonts, M } from '../../constants/meridian';
 import { saveGoogleUser } from '../../app/utils/tokenStorage';
-import { useGoogleAuth } from "../../hooks/useGoogleAuth";
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { authenticateWithGoogle, loginUser } from '../services/auth';
 
 export default function LoginScreen() {
-    const router = useRouter();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { promptAsync, response } = useGoogleAuth();
-    const { login } = useAuth();
-    const processedToken = useRef<string | null>(null);
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { promptAsync, response } = useGoogleAuth();
+  const { login } = useAuth();
+  const processedToken = useRef<string | null>(null);
 
-    const handleLogin = async () => {
-        if (!email || !password) {
-            Alert.alert('Error', 'Please enter email and password');
-            return;
-        }
+  const handleLogin = async () => {
+    setError(null);
+    if (!email || !password) {
+      setError('Veuillez saisir votre email et votre mot de passe.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await loginUser(email, password);
+      login(res);
+      if (res.userRole === 'SENDER') router.replace('/search');
+      if (res.userRole === 'TRANSPORTER') router.replace('/dashboard');
+    } catch (e: any) {
+      setError(e?.message || 'Identifiants invalides. Réessayez.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setLoading(true);
+  // Exchanges the Google id_token with our backend, then routes the user.
+  const handleGoogleToken = async (idToken: string) => {
+    if (processedToken.current === idToken) return;
+    processedToken.current = idToken;
+    try {
+      const data = await authenticateWithGoogle(idToken);
+      if (data.needsRoleSelection) {
+        await saveGoogleUser({
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          imageUrl: data.imageUrl,
+        });
+        router.replace('/(role-selection)');
+        return;
+      }
+      if (data.token) {
+        login(data);
+        if (data.userRole === 'SENDER') router.replace('/search');
+        if (data.userRole === 'TRANSPORTER') router.replace('/dashboard');
+      }
+    } catch (err) {
+      console.error('Google login error:', err);
+      setError('La connexion Google a échoué. Réessayez.');
+    }
+  };
 
-        try {
-            const response = await loginUser(email, password);
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params?.id_token;
+      if (idToken) handleGoogleToken(idToken);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [response]);
 
-            login(response);
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await promptAsync();
+      if (result?.type === 'success') {
+        const idToken = result.params?.id_token;
+        if (idToken) handleGoogleToken(idToken);
+      }
+    } catch (err) {
+      console.error('Google login error:', err);
+    }
+  };
 
-            if (response.userRole === 'SENDER') {
-                router.replace('/search');
-            }
+  return (
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* HERO */}
+        <View style={styles.hero}>
+          <LinearGradient
+            colors={[M.inkHi, M.ink]}
+            start={{ x: 0.3, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <Glow color="#EC5B43" size={160} style={{ left: -30, bottom: 0 }} />
+          <Glow color="#38BDF8" size={150} style={{ right: -30, top: 10 }} />
+          <RouteArc w={392} h={232} d="M50 175 Q 196 50 342 100" />
+          <View style={styles.heroInner}>
+            <LinearGradient
+              colors={['#EC5B43', '#F5A623']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logo}
+            >
+              <Feather name="package" size={26} color="#fff" />
+            </LinearGradient>
+            <Text style={styles.h1}>Welcome back</Text>
+            <Text style={styles.h2}>Sign in to Sendlo</Text>
+          </View>
+        </View>
 
-            if (response.userRole === 'TRANSPORTER') {
-                router.replace('/dashboard');
-            }
+        {/* FORM */}
+        <View style={styles.form}>
+          <InkField
+            icon="mail"
+            label="EMAIL"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+          />
+          <InkField
+            icon="lock"
+            label="PASSWORD"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="••••••••"
+            secure
+          />
 
-        } catch (error: any) {
-            Alert.alert('Login Failed', error.message || 'Invalid credentials');
-        } finally {
-            setLoading(false);
-        }
-    };
+          {error ? (
+            <View style={styles.errorBox}>
+              <Feather name="alert-circle" size={14} color="#fff" />
+              <Text style={styles.errorTxt}>{error}</Text>
+            </View>
+          ) : null}
 
-    // Exchanges the Google id_token with our backend, then routes the user.
-    // Goes through apiClient so it uses the right base URL per environment
-    // (/api behind the prod proxy, localhost:8080 in dev) instead of a
-    // hardcoded localhost that breaks on phones and in production.
-    const handleGoogleToken = async (idToken: string) => {
-        // The popup (desktop) and the redirect response (mobile) can both fire
-        // for the same sign-in — only process a given token once.
-        if (processedToken.current === idToken) return;
-        processedToken.current = idToken;
+          <Pressable onPress={() => router.push('/forgot-password')} hitSlop={6}>
+            <Text style={styles.forgot}>Forgot password?</Text>
+          </Pressable>
 
-        try {
-            const data = await authenticateWithGoogle(idToken);
+          <GradientButton label="Sign in" icon="arrow-right" onPress={handleLogin} loading={loading} />
+        </View>
 
-            if (data.needsRoleSelection) {
-                await saveGoogleUser({
-                    email: data.email,
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    imageUrl: data.imageUrl,
-                });
-                router.replace("/(role-selection)");
-                return;
-            }
-
-            if (data.token) {
-                login(data);
-
-                if (data.userRole === "SENDER") router.replace("/search");
-                if (data.userRole === "TRANSPORTER") router.replace("/dashboard");
-            }
-        } catch (err) {
-            console.error("Google login error:", err);
-            Alert.alert("Google login failed", "Could not complete sign-in. Please try again.");
-        }
-    };
-
-    // On mobile browsers the OAuth flow is a full-page redirect, so the result
-    // comes back here via `response` after the page reloads — not from the
-    // awaited promptAsync() (that only resolves for the desktop popup).
-    useEffect(() => {
-        if (response?.type === "success") {
-            const idToken = response.params?.id_token;
-            if (idToken) handleGoogleToken(idToken);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [response]);
-
-    const handleGoogleLogin = async () => {
-        try {
-            const result = await promptAsync();
-            // Desktop popup resolves here; the mobile redirect is handled by the effect above.
-            if (result?.type === "success") {
-                const idToken = result.params?.id_token;
-                if (idToken) handleGoogleToken(idToken);
-            }
-        } catch (err) {
-            console.error("Google login error:", err);
-        }
-    };
-
-    return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-                <View style={styles.card}>
-
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.logoContainer}>
-                            <Feather name="package" size={32} color="#FFFFFF" />
-                        </View>
-                        <Text style={styles.title}>Tunisia-France Link</Text>
-                        <Text style={styles.description}>Sign in to your account</Text>
-                    </View>
-
-                    {/* Form */}
-                    <View style={styles.content}>
-                        <View style={styles.form}>
-
-                            {/* Email */}
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Email</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="you@example.com"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                />
-                            </View>
-
-                            {/* Password */}
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Password</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="••••••••"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry
-                                />
-                            </View>
-
-                            {/* Sign In */}
-                            <TouchableOpacity
-                                style={[styles.signInButton, loading && styles.signInButtonDisabled]}
-                                onPress={handleLogin}
-                                activeOpacity={0.8}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="#FFFFFF" />
-                                ) : (
-                                    <Text style={styles.signInButtonText}>Sign In</Text>
-                                )}
-                            </TouchableOpacity>
-
-                            {/* 🔥 FORGOT PASSWORD (NEW POSITION) */}
-                            <TouchableOpacity
-                                onPress={() => router.push('/forgot-password')}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.forgotPassword}>
-                                    Forgot password?
-                                </Text>
-                            </TouchableOpacity>
-
-                        </View>
-
-                        {/* Divider */}
-                        <View style={styles.divider}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>Or continue with</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
-
-                        {/* Google */}
-                        <TouchableOpacity
-                            style={styles.googleButton}
-                            onPress={handleGoogleLogin}
-                            activeOpacity={0.8}
-                        >
-                            <Feather name="chrome" size={16} color="#374151" style={styles.googleIcon} />
-                            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-                        </TouchableOpacity>
-
-                        {/* Sign Up */}
-                        <View style={styles.signUpContainer}>
-                            <Link href="/(role-selection)" asChild>
-                                <TouchableOpacity activeOpacity={0.7}>
-                                    <Text style={styles.signUpText}>
-                                        Don't have an account? <Text style={styles.signUpLink}>Sign up</Text>
-                                    </Text>
-                                </TouchableOpacity>
-                            </Link>
-                        </View>
-
-                    </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
-    );
+        {/* FOOTER */}
+        <View style={styles.footer}>
+          <View style={styles.dividerRow}>
+            <View style={styles.line} />
+            <Text style={styles.or}>or</Text>
+            <View style={styles.line} />
+          </View>
+          <Pressable style={styles.google} onPress={handleGoogleLogin}>
+            <Feather name="chrome" size={16} color="#fff" />
+            <Text style={styles.googleTxt}>Continue with Google</Text>
+          </Pressable>
+          <View style={styles.signup}>
+            <Text style={styles.signupTxt}>New here? </Text>
+            <Link href="/(role-selection)" asChild>
+              <Pressable hitSlop={6}>
+                <Text style={styles.signupLink}>Create account</Text>
+              </Pressable>
+            </Link>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB' },
-    scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 16 },
+  screen: { flex: 1, backgroundColor: M.ink },
+  scroll: { flexGrow: 1, backgroundColor: M.ink },
 
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        maxWidth: 448,
-        width: '100%',
-        alignSelf: 'center',
-    },
+  hero: { height: 232, overflow: 'hidden' },
+  heroInner: { position: 'absolute', top: 42, left: 24, right: 24 },
+  logo: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#EC5B43',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  h1: { fontFamily: fonts.display, fontSize: 26, fontWeight: '700', color: '#fff', marginTop: 18, letterSpacing: -0.5 },
+  h2: { fontSize: 14, color: M.onInkMut, marginTop: 4, fontFamily: fonts.body },
 
-    header: {
-        paddingTop: 24,
-        paddingHorizontal: 24,
-        paddingBottom: 8,
-        alignItems: 'center',
-    },
+  form: { paddingHorizontal: 22, paddingTop: 22, gap: 14 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(236,91,67,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(236,91,67,0.5)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  errorTxt: { color: '#fff', fontSize: 13, flex: 1, fontFamily: fonts.body },
+  forgot: { textAlign: 'right', color: M.cool, fontSize: 13, fontWeight: '600', fontFamily: fonts.body },
 
-    logoContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#2563EB',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#111827',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-
-    description: {
-        fontSize: 14,
-        color: '#6B7280',
-        textAlign: 'center',
-    },
-
-    content: { padding: 24 },
-
-    form: { gap: 16 },
-
-    inputGroup: { marginBottom: 16 },
-
-    label: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#374151',
-        marginBottom: 8,
-    },
-
-    input: {
-        height: 48,
-        borderWidth: 1,
-        borderColor: '#D1D5DB',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        fontSize: 16,
-        backgroundColor: '#FFFFFF',
-        color: '#111827',
-    },
-
-    signInButton: {
-        backgroundColor: '#2563EB',
-        height: 48,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 8,
-    },
-
-    signInButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-
-    signInButtonDisabled: {
-        backgroundColor: '#9CA3AF',
-        opacity: 0.7,
-    },
-
-    forgotPassword: {
-        textAlign: 'center',
-        marginTop: 12,
-        color: '#2563EB',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-
-    divider: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 24,
-    },
-
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#E5E7EB',
-    },
-
-    dividerText: {
-        paddingHorizontal: 8,
-        fontSize: 12,
-        color: '#6B7280',
-        textTransform: 'uppercase',
-    },
-
-    googleButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 48,
-        borderWidth: 1,
-        borderColor: '#D1D5DB',
-        borderRadius: 8,
-    },
-
-    googleIcon: { marginRight: 8 },
-
-    googleButtonText: {
-        color: '#374151',
-        fontSize: 16,
-        fontWeight: '500',
-    },
-
-    signUpContainer: {
-        marginTop: 16,
-        alignItems: 'center',
-    },
-
-    signUpText: {
-        fontSize: 14,
-        color: '#6B7280',
-    },
-
-    signUpLink: {
-        color: '#2563EB',
-        fontWeight: '500',
-    },
+  footer: { paddingHorizontal: 22, paddingTop: 18, paddingBottom: 34 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  line: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+  or: { color: M.onInkFaint, fontSize: 12, fontFamily: fonts.body },
+  google: {
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  googleTxt: { color: '#fff', fontSize: 14, fontWeight: '600', fontFamily: fonts.body },
+  signup: { flexDirection: 'row', justifyContent: 'center', marginTop: 18 },
+  signupTxt: { color: M.onInkMut, fontSize: 13, fontFamily: fonts.body },
+  signupLink: { color: M.warm2, fontSize: 13, fontWeight: '600', fontFamily: fonts.body },
 });
