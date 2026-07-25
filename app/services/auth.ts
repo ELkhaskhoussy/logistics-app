@@ -32,6 +32,7 @@ export const registerUser = async (
         firstName: userData.firstName,
         lastName: userData.lastName || userData.firstName,
         role: userData.role,
+        phone: (userData as any).phone,
       }
     );
 
@@ -49,6 +50,20 @@ export const registerUser = async (
 
   throw error;
 }
+};
+
+/* ======================================================
+   EMAIL VERIFICATION (registration)
+====================================================== */
+
+/** Confirms the address with the code emailed at signup. */
+export const verifyEmail = async (email: string, code: string): Promise<void> => {
+  await apiClient.post('/users/auth/verify-email', { email, code });
+};
+
+/** Requests a fresh verification code (invalidates the previous one). */
+export const resendVerificationCode = async (email: string): Promise<void> => {
+  await apiClient.post('/users/auth/resend-verification', { email });
 };
 
 /* ======================================================

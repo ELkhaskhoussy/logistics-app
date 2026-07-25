@@ -7,6 +7,7 @@ import InkField from '../../components/meridian/InkField';
 import { fonts, M } from '../../constants/meridian';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { registerUser } from '../services/auth';
+import { cleanEmail, isValidEmail, isValidPhone, onlyDigits, onlyName } from '../utils/inputFilters';
 
 export default function RegisterTransporterScreen() {
   const router = useRouter();
@@ -27,6 +28,14 @@ export default function RegisterTransporterScreen() {
     setError(null);
     if (!name || !email || !phone || !password) {
       setError('Veuillez remplir tous les champs, téléphone inclus.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError('Adresse e-mail invalide.');
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError('Numéro de téléphone invalide (au moins 8 chiffres).');
       return;
     }
     if (password !== confirm) {
@@ -78,15 +87,15 @@ export default function RegisterTransporterScreen() {
         <Text style={styles.title}>Become a{'\n'}traveller</Text>
 
         <View style={styles.form}>
-          <InkField icon="user" label="FULL NAME" value={name} onChangeText={setName} placeholder="Leïla Trabelsi" autoCapitalize="words" />
-          <InkField icon="mail" label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
-          <InkField icon="phone" label="TÉLÉPHONE (WhatsApp)" value={phone} onChangeText={setPhone} placeholder="+216 55 123 456" keyboardType="phone-pad" />
+          <InkField icon="user" label="FULL NAME" value={name} onChangeText={(t) => setName(onlyName(t))} placeholder="Leïla Trabelsi" autoCapitalize="words" />
+          <InkField icon="mail" label="EMAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
+          <InkField icon="phone" label="TÉLÉPHONE (WhatsApp)" value={phone} onChangeText={(t) => setPhone(onlyPhone(t))} placeholder="+216 55 123 456" keyboardType="phone-pad" />
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <InkField icon="truck" label="VEHICLE" value={vehicle} onChangeText={setVehicle} placeholder="Van" autoCapitalize="words" />
+              <InkField icon="truck" label="VEHICLE" value={vehicle} onChangeText={(t) => setVehicle(onlyName(t))} placeholder="Van" autoCapitalize="words" />
             </View>
             <View style={{ flex: 1 }}>
-              <InkField icon="box" label="MAX KG" value={maxKg} onChangeText={setMaxKg} placeholder="25" keyboardType="number-pad" />
+              <InkField icon="box" label="MAX KG" value={maxKg} onChangeText={(t) => setMaxKg(onlyDigits(t, 4))} placeholder="25" keyboardType="number-pad" />
             </View>
           </View>
           <InkField icon="lock" label="PASSWORD" value={password} onChangeText={setPassword} placeholder="••••••••" secure />

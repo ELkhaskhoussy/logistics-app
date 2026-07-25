@@ -11,6 +11,7 @@ import { fonts, M } from '../../../constants/meridian';
 import { useAuth } from '../../../scripts/context/AuthContext';
 import { getUserById, updateUserPhone } from '../../services/user';
 import { createTransporterProfile, fetchTransporterProfile, updateTransporterProfile } from '../../services/trip';
+import { cappedText, isValidPhone, onlyName, onlyPhone, onlyPlate } from '../../utils/inputFilters';
 
 export default function TransporterProfileScreen() {
   const router = useRouter();
@@ -92,6 +93,11 @@ export default function TransporterProfileScreen() {
   const handleSave = async () => {
     const numericUserId = Number(userId);
     if (!numericUserId) return;
+    // The WhatsApp button senders use depends on this number being dialable.
+    if (!isValidPhone(phone)) {
+      Alert.alert('Erreur', 'Numéro de téléphone invalide (au moins 8 chiffres).');
+      return;
+    }
     try {
       await updateUserPhone(numericUserId, { phone });
       try {
@@ -150,15 +156,15 @@ export default function TransporterProfileScreen() {
         <Card style={{ overflow: 'hidden' }}>
           <Row icon="mail" label="Email" value={userInfo.email} />
           <View style={styles.divider} />
-          <EditRow label="Téléphone (WhatsApp)" icon="phone" value={phone} isEditing={isEditing} onChange={setPhone} />
+          <EditRow label="Téléphone (WhatsApp)" icon="phone" value={phone} isEditing={isEditing} onChange={(t: string) => setPhone(onlyPhone(t))} />
           <View style={styles.divider} />
           <Row icon="briefcase" label="Rôle" value={userInfo.role} />
           <View style={styles.divider} />
-          <EditRow label="Bio" icon="file-text" value={formData.bio} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, bio: t })} />
+          <EditRow label="Bio" icon="file-text" value={formData.bio} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, bio: cappedText(t, 250) })} />
           <View style={styles.divider} />
-          <EditRow label="Véhicule" icon="truck" value={formData.vehicleType} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, vehicleType: t })} />
+          <EditRow label="Véhicule" icon="truck" value={formData.vehicleType} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, vehicleType: onlyName(t) })} />
           <View style={styles.divider} />
-          <EditRow label="Plaque" icon="hash" value={formData.licensePlate} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, licensePlate: t })} last />
+          <EditRow label="Plaque" icon="hash" value={formData.licensePlate} isEditing={isEditing} onChange={(t: string) => setFormData({ ...formData, licensePlate: onlyPlate(t) })} last />
         </Card>
 
         {!isEditing ? (

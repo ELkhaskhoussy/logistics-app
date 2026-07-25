@@ -11,6 +11,7 @@ import GradientButton from '../../../components/meridian/GradientButton';
 import { fonts, M } from '../../../constants/meridian';
 import { createTrip } from '../../services/trip';
 import { getUserId } from '../../utils/tokenStorage';
+import { onlyCity, onlyDecimal, onlyDigits } from '../../utils/inputFilters';
 
 type StopItem = { address: string; dateTime?: string };
 
@@ -207,7 +208,7 @@ export default function AddTripScreen() {
                 <View style={[styles.dot, { backgroundColor: M.warm2 }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>DÉPART</Text>
-                  <TextInput style={styles.cityInput} placeholder="Tunis, TN" placeholderTextColor={M.textFaint} value={tripData.startAddress} onChangeText={(t) => setTripData((p) => ({ ...p, startAddress: t }))} />
+                  <TextInput style={styles.cityInput} placeholder="Tunis, TN" placeholderTextColor={M.textFaint} value={tripData.startAddress} onChangeText={(t) => setTripData((p) => ({ ...p, startAddress: onlyCity(t) }))} />
                 </View>
               </View>
               <View style={styles.rowDivider} />
@@ -232,7 +233,7 @@ export default function AddTripScreen() {
                 <View style={[styles.dot, { backgroundColor: M.cool }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.fieldLabel}>ARRIVÉE</Text>
-                  <TextInput style={styles.cityInput} placeholder="Paris, FR" placeholderTextColor={M.textFaint} value={tripData.endAddress} onChangeText={(t) => setTripData((p) => ({ ...p, endAddress: t }))} />
+                  <TextInput style={styles.cityInput} placeholder="Paris, FR" placeholderTextColor={M.textFaint} value={tripData.endAddress} onChangeText={(t) => setTripData((p) => ({ ...p, endAddress: onlyCity(t) }))} />
                 </View>
               </View>
               <View style={styles.rowDivider} />
@@ -260,7 +261,7 @@ export default function AddTripScreen() {
                   <Text style={styles.stopTitle}>Étape {index + 1}</Text>
                   <Pressable onPress={() => removeStop(index)}><Feather name="x" size={18} color={M.textFaint} /></Pressable>
                 </View>
-                <TextInput style={styles.stopInput} placeholder="Ville de l'étape" placeholderTextColor={M.textFaint} value={stop.address} onChangeText={(t) => updateStopAddress(index, t)} />
+                <TextInput style={styles.stopInput} placeholder="Ville de l'étape" placeholderTextColor={M.textFaint} value={stop.address} onChangeText={(t) => updateStopAddress(index, onlyCity(t))} />
                 {Platform.OS === 'web' ? (
                   <WebDate value={stop.dateTime} placeholder="Date & heure de l'étape" invalid={invalidStopDates.includes(index)}
                     onChange={(d: Date | null) => { if (!d) return; updateStopDateTime(index, formatDateTime(d, d)); }} />
@@ -288,13 +289,13 @@ export default function AddTripScreen() {
             <Text style={styles.label2}>Poids disponible (kg)</Text>
             <View style={styles.input2}>
               <Feather name="box" size={16} color={M.textMut} />
-              <TextInput style={styles.input2Field} placeholder="300" placeholderTextColor={M.textFaint} keyboardType="numeric" value={tripData.availableWeight} onChangeText={(t) => setTripData((p) => ({ ...p, availableWeight: t }))} />
+              <TextInput style={styles.input2Field} placeholder="300" placeholderTextColor={M.textFaint} keyboardType="number-pad" value={tripData.availableWeight} onChangeText={(t) => setTripData((p) => ({ ...p, availableWeight: onlyDigits(t, 5) }))} />
             </View>
 
             <Text style={styles.label2}>Prix par kg (€)</Text>
             <View style={styles.input2}>
               <Feather name="tag" size={16} color={M.textMut} />
-              <TextInput style={styles.input2Field} placeholder="4.5" placeholderTextColor={M.textFaint} keyboardType="numeric" value={tripData.pricePerKg} onChangeText={(t) => setTripData((p) => ({ ...p, pricePerKg: t }))} />
+              <TextInput style={styles.input2Field} placeholder="4.5" placeholderTextColor={M.textFaint} keyboardType="decimal-pad" value={tripData.pricePerKg} onChangeText={(t) => setTripData((p) => ({ ...p, pricePerKg: onlyDecimal(t) }))} />
             </View>
 
             <View style={styles.summary}>

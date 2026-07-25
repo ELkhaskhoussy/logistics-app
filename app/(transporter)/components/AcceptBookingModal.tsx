@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { fonts, M } from '../../../constants/meridian';
+import { cappedText, onlyDecimal } from '../../utils/inputFilters';
 
 interface AcceptBookingModalProps {
   visible: boolean;
@@ -52,7 +53,7 @@ const AcceptBookingModal = ({ visible, booking, onClose, onConfirm }: AcceptBook
                 keyboardType="numeric"
                 onChangeText={(value) => {
                   const updated = [...parcelWeights];
-                  updated[index].weightKg = value;
+                  updated[index].weightKg = onlyDecimal(value);
                   setParcelWeights(updated);
                   setEditedFields((prev) => (prev.includes(parcel.type) ? prev : [...prev, parcel.type]));
                 }}
@@ -64,7 +65,7 @@ const AcceptBookingModal = ({ visible, booking, onClose, onConfirm }: AcceptBook
           <Text style={styles.label}>Notes</Text>
           <TextInput
             value={notes}
-            onChangeText={setNotes}
+            onChangeText={(t) => setNotes(cappedText(t, 250))}
             placeholder="Ajouter une remarque…"
             placeholderTextColor={M.textFaint}
             multiline
