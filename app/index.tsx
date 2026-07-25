@@ -2,6 +2,7 @@ import { Redirect, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useAuth } from "../scripts/context/AuthContext";
+import LandingScreen from "../components/LandingScreen";
 import { authenticateWithGoogle } from "./services/auth";
 import { saveGoogleUser } from "./utils/tokenStorage";
 
@@ -45,7 +46,7 @@ function getReturnedIdToken(): string | null {
 
 export default function Index() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, token, role, loading } = useAuth();
   // Compute on first render so we never flash the <Redirect> (which would
   // navigate away and discard the token) when a token is present.
   const [processing] = useState(() => getReturnedIdToken() !== null);
@@ -102,13 +103,19 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (processing) {
+  if (processing || loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0A1626" }}>
+        <ActivityIndicator size="large" color="#F5A623" />
       </View>
     );
   }
 
-  return <Redirect href="/(auth)/login" />;
+  // Logged-in users skip the landing and go straight to their space.
+  if (token) {
+    return <Redirect href={role === "TRANSPORTER" ? "/dashboard" : "/search"} />;
+  }
+
+  // Guests see the public landing page (browse-before-signup).
+  return <LandingScreen />;
 }

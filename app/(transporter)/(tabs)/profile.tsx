@@ -9,7 +9,7 @@ import Glow from '../../../components/meridian/Glow';
 import GradientButton from '../../../components/meridian/GradientButton';
 import { fonts, M } from '../../../constants/meridian';
 import { useAuth } from '../../../scripts/context/AuthContext';
-import { getUserById } from '../../services/user';
+import { getUserById, updateUserPhone } from '../../services/user';
 import { createTransporterProfile, fetchTransporterProfile, updateTransporterProfile } from '../../services/trip';
 
 export default function TransporterProfileScreen() {
@@ -23,6 +23,7 @@ export default function TransporterProfileScreen() {
 
   const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', email: '', role: '', bio: '', vehicleType: '', licensePlate: '', imageUrl: '' });
   const [formData, setFormData] = useState({ bio: '', vehicleType: '', licensePlate: '' });
+  const [phone, setPhone] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -42,6 +43,7 @@ export default function TransporterProfileScreen() {
       setUserInfo(baseData);
       if (!isUploading) setImage(baseData.imageUrl);
       setFormData({ bio: '', vehicleType: '', licensePlate: '' });
+      setPhone(userData.phone || '');
       setLoading(false);
 
       fetchTransporterProfile(Number(userId))
@@ -91,6 +93,7 @@ export default function TransporterProfileScreen() {
     const numericUserId = Number(userId);
     if (!numericUserId) return;
     try {
+      await updateUserPhone(numericUserId, { phone });
       try {
         await updateTransporterProfile(numericUserId, formData);
       } catch {
@@ -146,6 +149,8 @@ export default function TransporterProfileScreen() {
       <View style={styles.body}>
         <Card style={{ overflow: 'hidden' }}>
           <Row icon="mail" label="Email" value={userInfo.email} />
+          <View style={styles.divider} />
+          <EditRow label="Téléphone (WhatsApp)" icon="phone" value={phone} isEditing={isEditing} onChange={setPhone} />
           <View style={styles.divider} />
           <Row icon="briefcase" label="Rôle" value={userInfo.role} />
           <View style={styles.divider} />
