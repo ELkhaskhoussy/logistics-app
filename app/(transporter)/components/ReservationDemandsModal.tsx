@@ -5,8 +5,8 @@ import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { fonts, M } from '../../../constants/meridian';
 import { getApiBaseUrl } from '../../networking/config';
 import type { Booking, ParcelResponse } from '../../networking/types';
-import { confirmBooking, getPendingDemandsByTrip, updateBookingStatus } from '../../services/booking';
-import AcceptBookingModal from './AcceptBookingModal';
+import { getPendingDemandsByTrip, updateBookingStatus } from '../../services/booking';
+import DemandDetailModal from './DemandDetailModal';
 
 function initials(name?: string, id?: any) {
   const src = name || `S${id ?? ''}`;
@@ -17,11 +17,13 @@ function DemandCard({
   booking,
   onAccept,
   onDecline,
+  onOpen,
   actionLoading,
 }: {
   booking: Booking;
   onAccept: (booking: Booking) => void;
   onDecline: (id: string) => void;
+  onOpen: (booking: Booking) => void;
   actionLoading: string | null;
 }) {
   const parcels = booking.parcels ?? [];
@@ -34,7 +36,7 @@ function DemandCard({
   const isActioning = actionLoading === booking.id;
 
   return (
-    <View style={s.card}>
+    <Pressable style={s.card} onPress={() => onOpen(booking)}>
       <View style={s.cardHead}>
         <LinearGradient colors={[M.blue, M.cool]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.avatar}>
           <Text style={s.avatarText}>{initials(booking.senderName, booking.senderId)}</Text>
@@ -50,6 +52,11 @@ function DemandCard({
 
       {description ? <Text style={s.desc}>{description}</Text> : null}
 
+      <View style={s.reviewHint}>
+        <Feather name="eye" size={13} color={M.blue} />
+        <Text style={s.reviewTxt}>Voir le détail avant de décider</Text>
+      </View>
+
       {photoUrls.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
           {photoUrls.map((url, i) => (
@@ -64,11 +71,11 @@ function DemandCard({
         </Pressable>
         <Pressable style={{ flex: 1 }} disabled={isActioning} onPress={() => onAccept(booking)}>
           <LinearGradient colors={[M.warm1, M.warm2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.acceptBtn}>
-            {isActioning ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.acceptText}>Accepter</Text>}
+            {isActioning ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.acceptText}>Pré-accepter</Text>}
           </LinearGradient>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -85,8 +92,7 @@ export default function ReservationDemandsModal({ visible, tripId, totalDemands,
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const [acceptModalVisible, setAcceptModalVisible] = useState(false);
+  const [detail, setDetail] = useState<Booking | null>(null);
 
   const fetchDemands = useCallback(async () => {
     if (!tripId) return;
@@ -107,11 +113,30 @@ export default function ReservationDemandsModal({ visible, tripId, totalDemands,
     if (visible) fetchDemands();
   }, [visible, fetchDemands]);
 
+  /**
+   * Agreement in principle: the sender is told to come to the collection point.
+   * The real weight is captured later, at hand-over.
+   */
+  const handlePreAccept = async (booking: Booking) => {
+    setActionLoading(booking.id);
+    try {
+      await updateBookingStatus(booking.id, 'PRE_ACCEPTED');
+      setDemands((prev) => prev.filter((d) => d.id !== booking.id));
+      setDetail(null);
+      onBookingConfirmed();
+    } catch (e: any) {
+      console.error('[ReservationDemandsModal] Pre-accept failed:', e?.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleDecline = async (bookingId: string) => {
     setActionLoading(bookingId);
     try {
       await updateBookingStatus(bookingId, 'CANCELLED');
       setDemands((prev) => prev.filter((d) => d.id !== bookingId));
+      setDetail(null);
     } catch (e: any) {
       console.error('[ReservationDemandsModal] Decline failed:', e?.message);
     } finally {
@@ -162,8 +187,9 @@ export default function ReservationDemandsModal({ visible, tripId, totalDemands,
                     <DemandCard
                       key={d.id}
                       booking={d}
-                      onAccept={(booking) => { setSelectedBooking(booking); setAcceptModalVisible(true); }}
+                      onAccept={handlePreAccept}
                       onDecline={handleDecline}
+                      onOpen={setDetail}
                       actionLoading={actionLoading}
                     />
                   ))
@@ -174,18 +200,12 @@ export default function ReservationDemandsModal({ visible, tripId, totalDemands,
         </View>
       </Modal>
 
-      <AcceptBookingModal
-        visible={acceptModalVisible}
-        booking={selectedBooking}
-        onClose={() => { setAcceptModalVisible(false); setSelectedBooking(null); }}
-        onConfirm={async (data) => {
-          if (!selectedBooking) return;
-          await confirmBooking(selectedBooking.id, data);
-          await onBookingConfirmed();
-          await fetchDemands();
-          setAcceptModalVisible(false);
-          setSelectedBooking(null);
-        }}
+      <DemandDetailModal
+        visible={!!detail}
+        booking={detail}
+        onClose={() => setDetail(null)}
+        onPreAccept={handlePreAccept}
+        onDecline={handleDecline}
       />
     </>
   );
@@ -214,6 +234,8 @@ const s = StyleSheet.create({
   subLine: { fontSize: 12, color: M.textFaint, marginTop: 2, fontFamily: fonts.body },
   dateText: { fontSize: 11, color: M.textFaint, fontFamily: fonts.body },
   desc: { fontSize: 13, color: M.textMut, marginTop: 10, fontFamily: fonts.body },
+  reviewHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  reviewTxt: { fontSize: 12, color: M.blue, fontWeight: '600', fontFamily: fonts.body },
   thumb: { width: 64, height: 64, borderRadius: 10, marginRight: 8, backgroundColor: M.page },
 
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
