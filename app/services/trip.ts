@@ -55,6 +55,12 @@ export const createTrip = async (
    GET TRIP BY ID
 ====================================================== */
 
+/** Transporter reports the stop he has reached — powers sender-side tracking. */
+export const updateTripCurrentStop = async (tripId: string, index: number) => {
+  const response = await apiClient.put(`/catalog/trips/${tripId}/current-stop?index=${index}`);
+  return response.data;
+};
+
 export const getTripById = async (tripId: string | number): Promise<Trip> => {
     const response = await apiClient.get<Trip>(ENDPOINTS.CATALOG.GET_TRIP(tripId));
     return response.data;

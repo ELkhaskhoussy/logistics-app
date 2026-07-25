@@ -302,9 +302,9 @@ export default function TransporterProfileScreen() {
 
       <TouchableOpacity
         style={styles.logoutButton}
-        onPress={() => {
-          logout();
-          router.replace("/(auth)/login" as any);
+        onPress={async () => {
+          await logout();
+          router.replace("/" as any);
         }}
       >
         <Feather name="log-out" size={20} color="#FFFFFF" />

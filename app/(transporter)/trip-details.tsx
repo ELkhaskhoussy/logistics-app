@@ -9,7 +9,7 @@ import GradientButton from '../../components/meridian/GradientButton';
 import RouteDots from '../../components/meridian/RouteDots';
 import { fonts, M } from '../../constants/meridian';
 import { getConfirmedBookingsByTrip, getPendingBookingsByTrip, getPreAcceptedBookingsByTrip } from '../services/booking';
-import { getTripById } from '../services/trip';
+import { getTripById, updateTripCurrentStop } from '../services/trip';
 import ConfirmedBookingsModal from './components/ConfirmedBookingsModal';
 import ReservationDemandsModal from './components/ReservationDemandsModal';
 import StopSelectorModal from './components/StopSelectorModal';
@@ -187,34 +187,36 @@ export default function TripDetailsScreen() {
             <Feather name="chevron-right" size={20} color={M.textFaint} />
           </Pressable>
 
+          {/* STEP 1 — incoming requests: accept to collect (read-only recap) */}
           <Pressable style={[styles.bookCard, { marginTop: 12 }]} onPress={() => setShowToCollectModal(true)}>
             <View style={styles.bookIconAmber}>
               <Feather name="package" size={20} color={M.amber} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bookTitle}>À collecter</Text>
-              <Text style={styles.bookSub}>Pré-acceptés · à peser au point de collecte</Text>
+              <Text style={styles.bookSub}>Demandes des expéditeurs · à accepter</Text>
             </View>
-            {toCollectCount > 0 ? (
+            {reservationDemandsCount > 0 ? (
               <View style={[styles.countBadge, { backgroundColor: M.amber }]}>
-                <Text style={styles.countBadgeTxt}>{toCollectCount}</Text>
+                <Text style={styles.countBadgeTxt}>{reservationDemandsCount}</Text>
               </View>
             ) : (
               <Feather name="chevron-right" size={20} color={M.textFaint} />
             )}
           </Pressable>
 
+          {/* STEP 2 — accepted parcels: check, adjust weight/notes, confirm */}
           <Pressable style={[styles.bookCard, { marginTop: 12 }]} onPress={() => setShowDemandsModal(true)}>
             <View style={styles.bookIconWarm}>
-              <Feather name="users" size={20} color={M.warm1} />
+              <Feather name="edit-2" size={20} color={M.warm1} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bookTitle}>Demandes de réservation</Text>
-              <Text style={styles.bookSub}>En attente de votre réponse</Text>
+              <Text style={styles.bookSub}>À vérifier et confirmer</Text>
             </View>
-            {reservationDemandsCount > 0 ? (
+            {toCollectCount > 0 ? (
               <View style={styles.countBadge}>
-                <Text style={styles.countBadgeTxt}>{reservationDemandsCount}</Text>
+                <Text style={styles.countBadgeTxt}>{toCollectCount}</Text>
               </View>
             ) : (
               <Feather name="chevron-right" size={20} color={M.textFaint} />
@@ -257,7 +259,17 @@ export default function TripDetailsScreen() {
         onClose={() => setIsStopModalVisible(false)}
         stops={modalStops}
         selectedIndex={currentStopIndex}
-        onSelect={(index) => { setCurrentStopIndex(index); setIsStopModalVisible(false); }}
+        onSelect={async (index) => {
+          setCurrentStopIndex(index);
+          setIsStopModalVisible(false);
+          try {
+            // Persist so the sender can follow the parcel along the route.
+            await updateTripCurrentStop(tripId ?? '', index);
+            fetchTripDetails();
+          } catch (e) {
+            console.warn('Failed to save current stop', e);
+          }
+        }}
       />
     </View>
   );

@@ -27,6 +27,13 @@ export default function SenderLayout() {
         }}
       />
       <Tabs.Screen
+        name="shipments"
+        options={{
+          title: 'Mes envois',
+          tabBarIcon: ({ color, size }) => <Feather name="package" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

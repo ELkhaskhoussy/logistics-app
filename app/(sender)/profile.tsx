@@ -96,9 +96,10 @@ export default function SenderProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    router.replace('/(auth)/login' as any);
+  const handleLogout = async () => {
+    // Clear auth first, then land on the public home page (not the login form).
+    await logout();
+    router.replace('/' as any);
   };
 
   if (loading) {

@@ -106,6 +106,17 @@ export default function BookingDetailsScreen() {
             <InfoRow label="Adresse" value={booking.recipient?.tunisiaAddress} />
           </View>
 
+          {/* TRANSPORTER NOTES — captured at hand-over */}
+          {booking.notes ? (
+            <View style={styles.notesCard}>
+              <View style={styles.cardHead}>
+                <Feather name="edit-3" size={17} color={M.amber} />
+                <Text style={styles.cardTitle}>Vos remarques</Text>
+              </View>
+              <Text style={styles.notesTxt}>{booking.notes}</Text>
+            </View>
+          ) : null}
+
           {/* PARCEL */}
           <View style={styles.card}>
             <View style={styles.cardHead}>
@@ -176,6 +187,8 @@ const styles = StyleSheet.create({
   empty: { color: M.textMut, fontSize: 15, fontFamily: fonts.body },
 
   card: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: M.line, padding: 18, marginBottom: 16 },
+  notesCard: { backgroundColor: '#FBF7ED', borderRadius: 20, borderWidth: 1, borderColor: '#F3E7C9', padding: 18, marginBottom: 16 },
+  notesTxt: { fontSize: 14, color: '#8A7A4E', lineHeight: 21, fontFamily: fonts.body },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: M.text, fontFamily: fonts.display },
 
