@@ -35,7 +35,7 @@ export default function LandingScreen() {
   }, []);
 
   const toLogin = () => router.push('/(auth)/login');
-  const toSignup = () => router.push('/(role-selection)');
+  const toSignup = () => router.push('/(auth)/register-sender');
 
   const fmtMonth = (v: any) => {
     if (!v) return '';
