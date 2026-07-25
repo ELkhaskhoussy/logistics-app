@@ -166,7 +166,7 @@ export default function TransporterProfileScreen() {
     }
 
     const response = await fetch(
-      `http://localhost:8080/users/${userId}/upload-profile-photo`,
+      `${require('../networking/config').getApiBaseUrl()}/users/${userId}/upload-profile-photo`,
       {
         method: "POST",
         body: formData,

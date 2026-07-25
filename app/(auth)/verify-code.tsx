@@ -16,6 +16,7 @@ import {
 import Glow from '../../components/meridian/Glow';
 import GradientButton from '../../components/meridian/GradientButton';
 import { fonts, M } from '../../constants/meridian';
+import { apiClient } from '../services/backService';
 
 export default function VerifyCodeScreen() {
   const router = useRouter();
@@ -72,15 +73,14 @@ export default function VerifyCodeScreen() {
     }
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/users/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: fullCode }),
-      });
-      if (!response.ok) throw new Error('Code invalide.');
+      await apiClient.post('/users/auth/verify-code', { email, code: fullCode });
       router.push({ pathname: '/(auth)/reset-password', params: { email } });
     } catch (e: any) {
-      setError(e?.message || 'Code invalide.');
+      // Never surface axios' raw "Request failed with status code 400".
+      const status = e?.response?.status;
+      if (!e?.response) setError('Connexion impossible. Réessayez.');
+      else if (status === 400 || status === 404) setError('Code invalide ou expiré.');
+      else setError('Vérification impossible. Réessayez.');
     } finally {
       setLoading(false);
     }
@@ -90,12 +90,7 @@ export default function VerifyCodeScreen() {
     if (!canResend || resending) return;
     try {
       setResending(true);
-      const res = await fetch('http://localhost:8080/users/auth/resend-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (!res.ok) throw new Error();
+      await apiClient.post('/users/auth/resend-code', { email });
       setCooldown(30);
       setCanResend(false);
       setExpiry(240);

@@ -18,7 +18,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Toast from 'react-native-toast-message';
 import GradientButton from '../../components/meridian/GradientButton';
 import RouteDots from '../../components/meridian/RouteDots';
 import { fonts, M } from '../../constants/meridian';
@@ -623,7 +622,6 @@ export default function TransporterProfileScreen() {
                 </Pressable>
               )}
             </View>
-            <Toast />
           </View>
         </View>
       </Modal>

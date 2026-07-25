@@ -7,6 +7,7 @@ import GradientButton from '../../components/meridian/GradientButton';
 import InkField from '../../components/meridian/InkField';
 import { fonts, M } from '../../constants/meridian';
 import { cleanEmail, isValidEmail } from '../utils/inputFilters';
+import { apiClient } from '../services/backService';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -26,16 +27,14 @@ export default function ForgotPasswordScreen() {
     }
     try {
       setLoading(true);
-      // NOTE: hardcoded localhost — pre-existing; needs to go through the API client for prod/mobile.
-      const response = await fetch('http://localhost:8080/users/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (!response.ok) throw new Error("Impossible d'envoyer le code.");
+      await apiClient.post('/users/auth/forgot-password', { email });
       router.push({ pathname: '/verify-code', params: { email } });
     } catch (e: any) {
-      setError(e?.message || "Une erreur s'est produite.");
+      setError(
+        e?.response?.status === 404
+          ? 'Aucun compte ne correspond à cette adresse.'
+          : "Impossible d'envoyer le code. Réessayez."
+      );
     } finally {
       setLoading(false);
     }

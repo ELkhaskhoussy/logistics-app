@@ -116,8 +116,11 @@ export default function AddTripScreen() {
       if (!tripData.availableWeight || !tripData.pricePerKg) { Toast.show({ type: 'error', text1: 'Définissez la capacité et le prix' }); return; }
       const weight = parseFloat(tripData.availableWeight);
       const price = parseFloat(tripData.pricePerKg);
+      // Upper bounds stop absurd values (a trip once shipped with 1e+31 kg).
       if (isNaN(weight) || weight <= 0) { Toast.show({ type: 'error', text1: 'Poids invalide' }); return; }
+      if (weight > 1000) { Toast.show({ type: 'error', text1: 'Capacité trop élevée', text2: 'Maximum 1000 kg par trajet.' }); return; }
       if (isNaN(price) || price <= 0) { Toast.show({ type: 'error', text1: 'Prix invalide' }); return; }
+      if (price > 500) { Toast.show({ type: 'error', text1: 'Prix trop élevé', text2: 'Maximum 500 € par kg.' }); return; }
 
       setLoading(true);
       const transporterId = await getUserId();
@@ -166,7 +169,7 @@ export default function AddTripScreen() {
           selected={value ? new Date(value) : null}
           onChange={onChange}
           showTimeSelect
-          dateFormat="yyyy-MM-dd HH:mm"
+          dateFormat="d MMM yyyy, HH:mm"
           placeholderText={placeholder}
           minDate={new Date()}
           popperPlacement="top-start"
@@ -289,7 +292,7 @@ export default function AddTripScreen() {
             <Text style={styles.label2}>Poids disponible (kg)</Text>
             <View style={styles.input2}>
               <Feather name="box" size={16} color={M.textMut} />
-              <TextInput style={styles.input2Field} placeholder="300" placeholderTextColor={M.textFaint} keyboardType="number-pad" value={tripData.availableWeight} onChangeText={(t) => setTripData((p) => ({ ...p, availableWeight: onlyDigits(t, 5) }))} />
+              <TextInput style={styles.input2Field} placeholder="300" placeholderTextColor={M.textFaint} keyboardType="number-pad" value={tripData.availableWeight} onChangeText={(t) => setTripData((p) => ({ ...p, availableWeight: onlyDigits(t, 4) }))} />
             </View>
 
             <Text style={styles.label2}>Prix par kg (€)</Text>
@@ -371,7 +374,9 @@ export default function AddTripScreen() {
         </>
       )}
 
-      <Toast />
+      {/* NOTE: no <Toast /> here — a single instance lives in app/_layout.tsx.
+          Multiple instances fight over the library's singleton ref and the
+          screen-level one renders clipped inside the page, so nothing showed. */}
     </View>
   );
 }
