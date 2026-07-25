@@ -14,6 +14,7 @@ export default function RegisterTransporterScreen() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   // Captured for the upcoming transporter-details backend fields (vehicle / capacity).
@@ -24,8 +25,8 @@ export default function RegisterTransporterScreen() {
 
   const handleSignUp = async () => {
     setError(null);
-    if (!name || !email || !password) {
-      setError('Veuillez remplir tous les champs.');
+    if (!name || !email || !phone || !password) {
+      setError('Veuillez remplir tous les champs, téléphone inclus.');
       return;
     }
     if (password !== confirm) {
@@ -41,7 +42,7 @@ export default function RegisterTransporterScreen() {
       const parts = name.trim().split(' ').filter(Boolean);
       const firstName = parts[0] || '';
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
-      const response = await registerUser({ firstName, lastName, email, password, role: 'TRANSPORTER' });
+      const response = await registerUser({ firstName, lastName, email, password, role: 'TRANSPORTER', phone });
       login(response);
 
       // Create default transporter profile (don't block login if it fails)
@@ -79,6 +80,7 @@ export default function RegisterTransporterScreen() {
         <View style={styles.form}>
           <InkField icon="user" label="FULL NAME" value={name} onChangeText={setName} placeholder="Leïla Trabelsi" autoCapitalize="words" />
           <InkField icon="mail" label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
+          <InkField icon="phone" label="TÉLÉPHONE (WhatsApp)" value={phone} onChangeText={setPhone} placeholder="+216 55 123 456" keyboardType="phone-pad" />
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <InkField icon="truck" label="VEHICLE" value={vehicle} onChangeText={setVehicle} placeholder="Van" autoCapitalize="words" />
