@@ -8,11 +8,12 @@ import Donut from '../../components/meridian/Donut';
 import GradientButton from '../../components/meridian/GradientButton';
 import RouteDots from '../../components/meridian/RouteDots';
 import { fonts, M } from '../../constants/meridian';
-import { getConfirmedBookingsByTrip, getPendingBookingsByTrip } from '../services/booking';
+import { getConfirmedBookingsByTrip, getPendingBookingsByTrip, getPreAcceptedBookingsByTrip } from '../services/booking';
 import { getTripById } from '../services/trip';
 import ConfirmedBookingsModal from './components/ConfirmedBookingsModal';
 import ReservationDemandsModal from './components/ReservationDemandsModal';
 import StopSelectorModal from './components/StopSelectorModal';
+import ToCollectModal from './components/ToCollectModal';
 
 const formatDate = (value: string | undefined) => {
   if (!value) return '—';
@@ -33,6 +34,8 @@ export default function TripDetailsScreen() {
   const [liveCapacity, setLiveCapacity] = useState<{ totalCapacityKg: number; availableCapacityKg: number } | null>(null);
   const [showConfirmedModal, setShowConfirmedModal] = useState(false);
   const [showDemandsModal, setShowDemandsModal] = useState(false);
+  const [showToCollectModal, setShowToCollectModal] = useState(false);
+  const [toCollectCount, setToCollectCount] = useState(0);
 
   const fetchBookingCounts = async () => {
     if (!tripId) return;
@@ -41,6 +44,8 @@ export default function TripDetailsScreen() {
       setConfirmedBookingsCount(confirmed.length);
       const pending = await getPendingBookingsByTrip(tripId);
       setReservationDemandsCount(pending.length);
+      const preAccepted = await getPreAcceptedBookingsByTrip(tripId);
+      setToCollectCount(preAccepted.length);
     } catch (err) {
       console.warn('Failed to fetch booking counts:', err);
     }
@@ -182,6 +187,23 @@ export default function TripDetailsScreen() {
             <Feather name="chevron-right" size={20} color={M.textFaint} />
           </Pressable>
 
+          <Pressable style={[styles.bookCard, { marginTop: 12 }]} onPress={() => setShowToCollectModal(true)}>
+            <View style={styles.bookIconAmber}>
+              <Feather name="package" size={20} color={M.amber} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.bookTitle}>À collecter</Text>
+              <Text style={styles.bookSub}>Pré-acceptés · à peser au point de collecte</Text>
+            </View>
+            {toCollectCount > 0 ? (
+              <View style={[styles.countBadge, { backgroundColor: M.amber }]}>
+                <Text style={styles.countBadgeTxt}>{toCollectCount}</Text>
+              </View>
+            ) : (
+              <Feather name="chevron-right" size={20} color={M.textFaint} />
+            )}
+          </Pressable>
+
           <Pressable style={[styles.bookCard, { marginTop: 12 }]} onPress={() => setShowDemandsModal(true)}>
             <View style={styles.bookIconWarm}>
               <Feather name="users" size={20} color={M.warm1} />
@@ -218,6 +240,12 @@ export default function TripDetailsScreen() {
         totalDemands={reservationDemandsCount}
         onBookingConfirmed={fetchTripDetails}
         onClose={() => { setShowDemandsModal(false); fetchBookingCounts(); }}
+      />
+      <ToCollectModal
+        visible={showToCollectModal}
+        tripId={tripId ?? ''}
+        onClose={() => { setShowToCollectModal(false); fetchBookingCounts(); }}
+        onChanged={() => { fetchTripDetails(); fetchBookingCounts(); }}
       />
       <ConfirmedBookingsModal
         visible={showConfirmedModal}
@@ -269,6 +297,7 @@ const styles = StyleSheet.create({
   bookCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: M.line, padding: 16 },
   bookIconBlue: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
   bookIconWarm: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#FEF0EC', alignItems: 'center', justifyContent: 'center' },
+  bookIconAmber: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#FBF3E1', alignItems: 'center', justifyContent: 'center' },
   bookTitle: { fontSize: 15, fontWeight: '700', color: M.text, fontFamily: fonts.body },
   bookSub: { fontSize: 12, color: M.textFaint, marginTop: 2, fontFamily: fonts.body },
   countBadge: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: M.warm1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },

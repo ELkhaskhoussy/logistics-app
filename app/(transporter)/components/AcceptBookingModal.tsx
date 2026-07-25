@@ -40,14 +40,15 @@ const AcceptBookingModal = ({ visible, booking, onClose, onConfirm }: AcceptBook
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Accepter ce colis ?</Text>
+          <Text style={styles.title}>Confirmer la remise</Text>
+          <Text style={styles.helper}>Saisissez le poids réel pesé au point de collecte.</Text>
 
           <Text style={styles.label}>Quantité</Text>
           <TextInput value={String(totalQuantity)} editable={false} style={[styles.input, styles.disabled]} />
 
           {parcelWeights.map((parcel, index) => (
             <View key={index}>
-              <Text style={styles.label}>Colis {index + 1} — {parcel.type} (kg)</Text>
+              <Text style={styles.label}>Colis {index + 1} — {parcel.type} · poids réel (kg)</Text>
               <TextInput
                 value={parcel.weightKg}
                 keyboardType="numeric"
@@ -95,7 +96,8 @@ export default AcceptBookingModal;
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(10,22,38,0.55)', justifyContent: 'center', padding: 20 },
   container: { backgroundColor: '#fff', borderRadius: 22, padding: 22 },
-  title: { fontSize: 19, fontWeight: '700', marginBottom: 14, color: M.text, fontFamily: fonts.display },
+  title: { fontSize: 19, fontWeight: '700', color: M.text, fontFamily: fonts.display },
+  helper: { fontSize: 13, color: M.textMut, marginTop: 4, marginBottom: 10, fontFamily: fonts.body },
   label: { fontSize: 13, fontWeight: '500', marginBottom: 6, marginTop: 12, color: M.textMut, fontFamily: fonts.body },
   input: { backgroundColor: M.surfaceAlt, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, fontSize: 15, color: M.text, fontFamily: fonts.body },
   disabled: { color: M.textMut, backgroundColor: M.page },
