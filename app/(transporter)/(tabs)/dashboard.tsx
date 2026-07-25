@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import Badge from '../../../components/meridian/Badge';
 import Card from '../../../components/meridian/Card';
 import Glow from '../../../components/meridian/Glow';
+import NotificationBell from '../../../components/meridian/NotificationBell';
 import { fonts, M } from '../../../constants/meridian';
 import { apiClient } from '../../networking/client';
 import { getToken, getUserId } from '../../utils/tokenStorage';
@@ -15,10 +16,13 @@ export default function DashboardScreen() {
   const [upcomingTrips, setUpcomingTrips] = useState<any[]>([]);
   const [pastTrips, setPastTrips] = useState<any[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(true);
+  // Distinct from "no trips": a failed load must never look like an empty list.
+  const [loadError, setLoadError] = useState(false);
 
   const loadTrips = useCallback(async () => {
     try {
       setLoadingTrips(true);
+      setLoadError(false);
       const userId = await getUserId();
       const token = await getToken();
       if (!userId || !token) return;
@@ -31,6 +35,7 @@ export default function DashboardScreen() {
       setPastTrips(trips.filter((t) => new Date(t.departureTime) < now));
     } catch (err) {
       console.log('Failed to load trips:', err);
+      setLoadError(true);
       setUpcomingTrips([]);
       setPastTrips([]);
     } finally {
@@ -95,9 +100,7 @@ export default function DashboardScreen() {
               <Text style={styles.hello}>Bon retour,</Text>
               <Text style={styles.heroTitle}>Tableau de bord</Text>
             </View>
-            <View style={styles.bell}>
-              <Feather name="bell" size={18} color="#fff" />
-            </View>
+            <NotificationBell />
           </View>
 
           <View style={styles.statsCard}>
@@ -118,12 +121,26 @@ export default function DashboardScreen() {
           </View>
         </View>
 
+        {/* Load failure — shown instead of a misleading empty state */}
+        {loadError ? (
+          <View style={styles.errorBanner}>
+            <Feather name="wifi-off" size={18} color={M.warm1} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.errorTitle}>Impossible de charger vos trajets</Text>
+              <Text style={styles.errorSub}>Vérifiez votre connexion.</Text>
+            </View>
+            <Pressable style={styles.retryBtn} onPress={loadTrips}>
+              <Text style={styles.retryTxt}>Réessayer</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* UPCOMING */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trajets à venir</Text>
           {loadingTrips ? (
             <ActivityIndicator color={M.warm1} style={{ marginTop: 10 }} />
-          ) : upcomingTrips.length === 0 ? (
+          ) : loadError ? null : upcomingTrips.length === 0 ? (
             <Text style={styles.empty}>Aucun trajet à venir</Text>
           ) : (
             upcomingTrips
@@ -135,7 +152,7 @@ export default function DashboardScreen() {
         {/* PAST */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trajets passés</Text>
-          {loadingTrips ? null : pastTrips.length === 0 ? (
+          {loadingTrips || loadError ? null : pastTrips.length === 0 ? (
             <Text style={styles.empty}>Aucun trajet passé</Text>
           ) : (
             pastTrips.map(renderTrip)
@@ -159,7 +176,6 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   hello: { fontSize: 13, color: M.onInkMut, fontFamily: fonts.body },
   heroTitle: { fontFamily: fonts.display, fontSize: 24, fontWeight: '700', color: '#fff', letterSpacing: -0.3 },
-  bell: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
 
   statsCard: { marginTop: 18, flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 20, paddingVertical: 16 },
   stat: { flex: 1, alignItems: 'center' },
@@ -170,6 +186,14 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, paddingTop: 22 },
   sectionTitle: { fontFamily: fonts.display, fontSize: 16, fontWeight: '700', color: M.text, marginBottom: 12 },
   empty: { color: M.textMut, fontFamily: fonts.body },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 20, marginTop: 20,
+    backgroundColor: '#FEF0EC', borderWidth: 1, borderColor: '#F6D9CE', borderRadius: 16, padding: 14,
+  },
+  errorTitle: { fontSize: 14, fontWeight: '600', color: '#B33F2A', fontFamily: fonts.body },
+  errorSub: { fontSize: 12, color: '#A8705B', marginTop: 2, fontFamily: fonts.body },
+  retryBtn: { backgroundColor: M.warm1, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  retryTxt: { color: '#fff', fontSize: 12, fontWeight: '600', fontFamily: fonts.body },
 
   tripCard: { padding: 16, marginBottom: 14 },
   tripTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

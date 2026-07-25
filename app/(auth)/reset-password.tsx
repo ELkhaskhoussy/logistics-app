@@ -6,6 +6,7 @@ import Glow from '../../components/meridian/Glow';
 import GradientButton from '../../components/meridian/GradientButton';
 import InkField from '../../components/meridian/InkField';
 import { fonts, M } from '../../constants/meridian';
+import { apiClient } from '../services/backService';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -38,18 +39,13 @@ export default function ResetPasswordScreen() {
     }
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/users/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, newPassword: password }),
-      });
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(err || 'Réinitialisation échouée.');
-      }
+      await apiClient.post('/users/auth/reset-password', { email, newPassword: password });
       router.replace('/(auth)/login');
     } catch (e: any) {
-      setError(e?.message || "Une erreur s'est produite.");
+      const status = e?.response?.status;
+      if (!e?.response) setError('Connexion impossible. Réessayez.');
+      else if (status === 400) setError('Lien expiré ou code non vérifié. Recommencez la procédure.');
+      else setError("Réinitialisation impossible. Réessayez.");
     } finally {
       setLoading(false);
     }
