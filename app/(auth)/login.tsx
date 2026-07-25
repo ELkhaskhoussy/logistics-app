@@ -19,7 +19,7 @@ import { fonts, M } from '../../constants/meridian';
 import { saveGoogleUser } from '../../app/utils/tokenStorage';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useAuth } from '../../scripts/context/AuthContext';
-import { authenticateWithGoogle, loginUser } from '../services/auth';
+import { authenticateWithGoogle, loginUser, registerWithGoogle } from '../services/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,7 +44,16 @@ export default function LoginScreen() {
       if (res.userRole === 'SENDER') router.replace('/search');
       if (res.userRole === 'TRANSPORTER') router.replace('/dashboard');
     } catch (e: any) {
-      setError(e?.message || 'Identifiants invalides. Réessayez.');
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        setError('Email ou mot de passe incorrect.');
+      } else if (!status || e?.code === 'ERR_NETWORK') {
+        setError('Connexion impossible. Vérifiez votre connexion et réessayez.');
+      } else if (status >= 500) {
+        setError('Service momentanément indisponible. Réessayez.');
+      } else {
+        setError('Email ou mot de passe incorrect.');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,13 +66,16 @@ export default function LoginScreen() {
     try {
       const data = await authenticateWithGoogle(idToken);
       if (data.needsRoleSelection) {
-        await saveGoogleUser({
+        // Public signup is Sender-only — register the Google user as SENDER directly.
+        const senderData = await registerWithGoogle({
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
           imageUrl: data.imageUrl,
+          role: 'SENDER',
         });
-        router.replace('/(role-selection)');
+        await login(senderData);
+        router.replace('/search');
         return;
       }
       if (data.token) {
@@ -171,7 +183,7 @@ export default function LoginScreen() {
           </Pressable>
           <View style={styles.signup}>
             <Text style={styles.signupTxt}>New here? </Text>
-            <Link href="/(role-selection)" asChild>
+            <Link href="/(auth)/register-sender" asChild>
               <Pressable hitSlop={6}>
                 <Text style={styles.signupLink}>Create account</Text>
               </Pressable>

@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useAuth } from "../scripts/context/AuthContext";
 import LandingScreen from "../components/LandingScreen";
-import { authenticateWithGoogle } from "./services/auth";
+import { authenticateWithGoogle, registerWithGoogle } from "./services/auth";
 import { saveGoogleUser } from "./utils/tokenStorage";
 
 /**
@@ -72,13 +72,16 @@ export default function Index() {
         const data = await authenticateWithGoogle(idToken);
 
         if (data.needsRoleSelection) {
-          await saveGoogleUser({
+          // Public signup is Sender-only — register the Google user as SENDER.
+          const senderData = await registerWithGoogle({
             email: data.email,
             firstName: data.firstName,
             lastName: data.lastName,
             imageUrl: data.imageUrl,
+            role: "SENDER",
           });
-          router.replace("/(role-selection)");
+          await login(senderData);
+          router.replace("/search");
           return;
         }
 
