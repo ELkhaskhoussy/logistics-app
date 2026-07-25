@@ -12,6 +12,7 @@ import RouteArc from '../../components/meridian/RouteArc';
 import RouteDots from '../../components/meridian/RouteDots';
 import { fonts, M } from '../../constants/meridian';
 import { apiClient } from '../services/backService';
+import { onlyCity } from '../utils/inputFilters';
 
 type MonthOption = { value: string; label: string };
 
@@ -175,11 +176,11 @@ export default function SearchScreen() {
 
                 <View style={styles.wf}>
                   <Feather name="navigation" size={16} color={M.warm1} />
-                  <TextInput style={styles.wfInput} placeholder="Ville de collecte" placeholderTextColor={M.textFaint} value={collectionCity} onChangeText={setCollectionCity} />
+                  <TextInput style={styles.wfInput} placeholder="Ville de collecte" placeholderTextColor={M.textFaint} value={collectionCity} onChangeText={(t) => setCollectionCity(onlyCity(t))} />
                 </View>
                 <View style={styles.wf}>
                   <Feather name="map-pin" size={16} color={M.blue} />
-                  <TextInput style={styles.wfInput} placeholder="Ville de livraison" placeholderTextColor={M.textFaint} value={deliveryCity} onChangeText={setDeliveryCity} />
+                  <TextInput style={styles.wfInput} placeholder="Ville de livraison" placeholderTextColor={M.textFaint} value={deliveryCity} onChangeText={(t) => setDeliveryCity(onlyCity(t))} />
                 </View>
 
                 <Pressable style={styles.wf} onPress={() => setMonthOpen(!monthOpen)}>

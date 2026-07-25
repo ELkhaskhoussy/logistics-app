@@ -6,6 +6,7 @@ import Glow from '../../components/meridian/Glow';
 import GradientButton from '../../components/meridian/GradientButton';
 import InkField from '../../components/meridian/InkField';
 import { fonts, M } from '../../constants/meridian';
+import { cleanEmail, isValidEmail } from '../utils/inputFilters';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -17,6 +18,10 @@ export default function ForgotPasswordScreen() {
     setError(null);
     if (!email) {
       setError('Veuillez saisir votre email.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError('Adresse e-mail invalide.');
       return;
     }
     try {
@@ -53,7 +58,7 @@ export default function ForgotPasswordScreen() {
         </View>
 
         <View style={styles.form}>
-          <InkField icon="mail" label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
+          <InkField icon="mail" label="EMAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
           {error ? (
             <View style={styles.errorBox}>
               <Feather name="alert-circle" size={14} color="#fff" />

@@ -7,6 +7,7 @@ import InkField from '../../components/meridian/InkField';
 import { fonts, M } from '../../constants/meridian';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { registerUser } from '../services/auth';
+import { cleanEmail, isValidEmail, isValidPhone, onlyName, onlyPhone } from '../utils/inputFilters';
 
 export default function RegisterSenderScreen() {
   const router = useRouter();
@@ -26,6 +27,14 @@ export default function RegisterSenderScreen() {
       setError('Veuillez remplir tous les champs.');
       return;
     }
+    if (!isValidEmail(email)) {
+      setError('Adresse e-mail invalide.');
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError('Numéro de téléphone invalide (au moins 8 chiffres).');
+      return;
+    }
     if (password !== confirm) {
       setError('Les mots de passe ne correspondent pas.');
       return;
@@ -41,7 +50,8 @@ export default function RegisterSenderScreen() {
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
       const response = await registerUser({ firstName, lastName, email, password, role: 'SENDER', phone });
       login(response);
-      router.replace('/(sender)/search' as any);
+      // Account created but not yet verified — confirm the email address next.
+      router.replace({ pathname: '/(auth)/verify-email', params: { email } } as any);
     } catch (e: any) {
       setError(e?.message || "Une erreur s'est produite.");
     } finally {
@@ -62,9 +72,9 @@ export default function RegisterSenderScreen() {
         <Text style={styles.title}>Create your{'\n'}account</Text>
 
         <View style={styles.form}>
-          <InkField icon="user" label="FULL NAME" value={name} onChangeText={setName} placeholder="Sami Aouni" autoCapitalize="words" />
-          <InkField icon="mail" label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
-          <InkField icon="phone" label="PHONE" value={phone} onChangeText={setPhone} placeholder="+216 55 123 456" keyboardType="phone-pad" />
+          <InkField icon="user" label="FULL NAME" value={name} onChangeText={(t) => setName(onlyName(t))} placeholder="Sami Aouni" autoCapitalize="words" />
+          <InkField icon="mail" label="EMAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
+          <InkField icon="phone" label="PHONE" value={phone} onChangeText={(t) => setPhone(onlyPhone(t))} placeholder="+216 55 123 456" keyboardType="phone-pad" />
           <InkField icon="lock" label="PASSWORD" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
           <InkField icon="lock" label="CONFIRM PASSWORD" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
 

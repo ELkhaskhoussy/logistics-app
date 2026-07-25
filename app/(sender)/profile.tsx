@@ -10,6 +10,7 @@ import GradientButton from '../../components/meridian/GradientButton';
 import { fonts, M } from '../../constants/meridian';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { getUserById, updateUserPhone } from '../services/user';
+import { isValidPhone, onlyPhone } from '../utils/inputFilters';
 
 export default function SenderProfileScreen() {
   const router = useRouter();
@@ -80,6 +81,10 @@ export default function SenderProfileScreen() {
   };
 
   const handleSave = async () => {
+    if (phone && !isValidPhone(phone)) {
+      Alert.alert('Erreur', 'Numéro de téléphone invalide (au moins 8 chiffres).');
+      return;
+    }
     try {
       await updateUserPhone(userId, { phone });
       Alert.alert('Success', 'Phone updated');
@@ -137,7 +142,7 @@ export default function SenderProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.infoLabel}>Téléphone</Text>
               {isEditing ? (
-                <TextInput value={phone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" placeholderTextColor={M.textFaint} />
+                <TextInput value={phone} onChangeText={(t) => setPhone(onlyPhone(t))} style={styles.input} keyboardType="phone-pad" placeholderTextColor={M.textFaint} />
               ) : (
                 <Text style={styles.infoValue}>{userInfo.phone || 'Non renseigné'}</Text>
               )}

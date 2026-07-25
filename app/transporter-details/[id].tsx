@@ -25,6 +25,7 @@ import { fonts, M } from '../../constants/meridian';
 import { getApiBaseUrl } from '../networking/config';
 import { apiClient } from '../services/backService';
 import { getToken, getUserId } from '../utils/tokenStorage';
+import { cappedText, onlyCity, onlyDecimal, onlyDigits, onlyName, onlyPhone } from '../utils/inputFilters';
 
 const BOOKING_SUCCESS_MESSAGE = 'Votre réservation est confirmée ✅';
 
@@ -417,16 +418,17 @@ export default function TransporterProfileScreen() {
                       placeholderTextColor={M.textFaint}
                       style={[styles.input, showErrors && !parcel.description && styles.errBorder]}
                       value={parcel.description}
-                      onChangeText={(t) => { const u = [...parcels]; u[index].description = t; setParcels(u); }}
+                      onChangeText={(t) => { const u = [...parcels]; u[index].description = cappedText(t, 200); setParcels(u); }}
                     />
 
                     <Text style={styles.fieldLabel}>Poids (kg)</Text>
                     <TextInput
                       placeholder="5"
                       placeholderTextColor={M.textFaint}
+                      keyboardType="decimal-pad"
                       style={[styles.input, showErrors && !parcel.weightKg && styles.errBorder]}
                       value={parcel.weightKg}
-                      onChangeText={(t) => { const u = [...parcels]; u[index].weightKg = t; setParcels(u); }}
+                      onChangeText={(t) => { const u = [...parcels]; u[index].weightKg = onlyDecimal(t); setParcels(u); }}
                     />
 
                     <Text style={styles.fieldLabel}>Quantité</Text>
@@ -436,7 +438,7 @@ export default function TransporterProfileScreen() {
                       keyboardType="numeric"
                       style={[styles.input, showErrors && !parcel.quantity && styles.errBorder]}
                       value={parcel.quantity}
-                      onChangeText={(t) => { const u = [...parcels]; u[index].quantity = t; setParcels(u); }}
+                      onChangeText={(t) => { const u = [...parcels]; u[index].quantity = onlyDigits(t, 3); setParcels(u); }}
                     />
 
                     <View style={styles.fragileBox}>
@@ -507,22 +509,23 @@ export default function TransporterProfileScreen() {
                     placeholderTextColor={M.textFaint}
                     style={[styles.input, showErrors && !recipient.street && styles.errBorder]}
                     value={recipient.street}
-                    onChangeText={(text) => setRecipient({ ...recipient, street: text })}
+                    onChangeText={(text) => setRecipient({ ...recipient, street: onlyCity(text) })}
                   />
                   <Text style={styles.fieldLabel}>Nom du destinataire</Text>
                   <TextInput
                     placeholder="Nom complet"
                     placeholderTextColor={M.textFaint}
                     value={recipient.fullName}
-                    onChangeText={(text) => setRecipient({ ...recipient, fullName: text })}
+                    onChangeText={(text) => setRecipient({ ...recipient, fullName: onlyName(text) })}
                     style={[styles.input, showErrors && !recipient.fullName && styles.errBorder]}
                   />
                   <TextInput
                     placeholder="Téléphone destinataire"
                     placeholderTextColor={M.textFaint}
+                    keyboardType="phone-pad"
                     style={[styles.input, showErrors && !recipient.phoneNumber && styles.errBorder]}
                     value={recipient.phoneNumber}
-                    onChangeText={(text) => setRecipient({ ...recipient, phoneNumber: text })}
+                    onChangeText={(text) => setRecipient({ ...recipient, phoneNumber: onlyPhone(text) })}
                   />
                 </View>
               )}
@@ -586,6 +589,18 @@ export default function TransporterProfileScreen() {
                     if (step === 1) {
                       const isValid = parcels.every((p) => p.type && p.description && p.weightKg);
                       if (!isValid) return;
+                      // Weights must be real positive numbers…
+                      if (!parcels.every((p) => parseFloat(p.weightKg) > 0)) {
+                        setMessage('Le poids doit être supérieur à 0.');
+                        return;
+                      }
+                      // …and must fit the remaining capacity on this trip.
+                      const available = Number(trip?.availableCapacityKg ?? 0);
+                      const asked = parcels.reduce((s, p) => s + Number(p.weightKg || 0), 0);
+                      if (available > 0 && asked > available) {
+                        setMessage(`Poids total (${asked} kg) supérieur à la capacité disponible (${available} kg).`);
+                        return;
+                      }
                     }
                     if (step === 2) {
                       const isValid = recipient.fullName && recipient.phoneNumber && recipient.street;

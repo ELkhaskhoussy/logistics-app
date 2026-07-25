@@ -20,6 +20,7 @@ import { saveGoogleUser } from '../../app/utils/tokenStorage';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { authenticateWithGoogle, loginUser, registerWithGoogle } from '../services/auth';
+import { cleanEmail } from '../utils/inputFilters';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -143,7 +144,7 @@ export default function LoginScreen() {
             icon="mail"
             label="EMAIL"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => setEmail(cleanEmail(t))}
             placeholder="you@example.com"
             keyboardType="email-address"
           />
