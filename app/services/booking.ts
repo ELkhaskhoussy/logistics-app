@@ -20,6 +20,12 @@ export const getPendingDemandsByTrip = async (tripId: string): Promise<Booking[]
 };
 
 // ── Update booking status (Accept → CONFIRMED | Decline → CANCELLED) ─
+// ── GET a sender's own bookings ("Mes envois") ─────────────────────
+export const getMyBookings = async (senderId: number | string): Promise<Booking[]> => {
+    const response = await apiClient.get<Booking[]>(`${BASE}/sender/${senderId}`);
+    return response.data;
+};
+
 // ── GET pre-accepted bookings for a trip ("à collecter") ───────────
 export const getPreAcceptedBookingsByTrip = async (tripId: string): Promise<Booking[]> => {
     const response = await apiClient.get<Booking[]>(`${BASE}/trip/${tripId}/pre-accepted`);

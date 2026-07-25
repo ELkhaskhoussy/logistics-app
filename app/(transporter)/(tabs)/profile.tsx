@@ -183,7 +183,7 @@ export default function TransporterProfileScreen() {
           </View>
         )}
 
-        <Pressable style={styles.logout} onPress={() => { logout(); router.replace('/(auth)/login' as any); }}>
+        <Pressable style={styles.logout} onPress={async () => { await logout(); router.replace('/' as any); }}>
           <Feather name="log-out" size={15} color={M.warm1} />
           <Text style={styles.logoutTxt}>Se déconnecter</Text>
         </Pressable>

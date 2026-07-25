@@ -184,6 +184,8 @@ export interface Booking {
     tripId: string;
     status: string;
     createdAt: string;
+    /** Remarks written by the transporter when confirming the hand-over. */
+    notes?: string;
     parcels?: ParcelResponse[];
     recipient?: RecipientResponse;
 }
