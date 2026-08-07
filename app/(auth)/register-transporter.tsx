@@ -52,7 +52,7 @@ export default function RegisterTransporterScreen() {
       const firstName = parts[0] || '';
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
       const response = await registerUser({ firstName, lastName, email, password, role: 'TRANSPORTER', phone });
-      login(response);
+      await login(response);
 
       // Create default transporter profile (don't block login if it fails)
       try {

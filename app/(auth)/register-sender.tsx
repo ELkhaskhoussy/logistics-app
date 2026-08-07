@@ -49,7 +49,7 @@ export default function RegisterSenderScreen() {
       const firstName = parts[0] || 'User';
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
       const response = await registerUser({ firstName, lastName, email, password, role: 'SENDER', phone });
-      login(response);
+      await login(response);
       // Account created but not yet verified — confirm the email address next.
       router.replace({ pathname: '/(auth)/verify-email', params: { email } } as any);
     } catch (e: any) {

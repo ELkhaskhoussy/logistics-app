@@ -37,7 +37,7 @@ export default function RoleSelection() {
         imageUrl: googleUser.imageUrl,
         role,
       });
-      login(data);
+      await login(data);
 
       if (role === 'TRANSPORTER') {
         try {

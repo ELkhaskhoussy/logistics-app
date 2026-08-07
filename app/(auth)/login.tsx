@@ -41,7 +41,9 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await loginUser(email, password);
-      login(res);
+      // Must await: login() persists the token to storage. Navigating before it
+      // resolves makes index.tsx see no token and fall back to the landing page.
+      await login(res);
       if (res.userRole === 'SENDER') router.replace('/search');
       if (res.userRole === 'TRANSPORTER') router.replace('/dashboard');
     } catch (e: any) {
@@ -80,7 +82,7 @@ export default function LoginScreen() {
         return;
       }
       if (data.token) {
-        login(data);
+        await login(data);
         if (data.userRole === 'SENDER') router.replace('/search');
         if (data.userRole === 'TRANSPORTER') router.replace('/dashboard');
       }
