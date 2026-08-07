@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import Badge from '../../components/meridian/Badge';
 import Card from '../../components/meridian/Card';
 import Glow from '../../components/meridian/Glow';
+import NotificationBell from '../../components/meridian/NotificationBell';
 import GradientButton from '../../components/meridian/GradientButton';
 import RouteArc from '../../components/meridian/RouteArc';
 import RouteDots from '../../components/meridian/RouteDots';
@@ -34,6 +35,8 @@ export default function SearchScreen() {
 
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  // A failed load must read as an error, not as "no trips available".
+  const [loadError, setLoadError] = useState(false);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [monthOpen, setMonthOpen] = useState(false);
@@ -54,10 +57,12 @@ export default function SearchScreen() {
   const loadAvailableTrips = async () => {
     try {
       setLoading(true);
+      setLoadError(false);
       const response = await apiClient.get('/catalog/trips/available');
       setTrips(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error(err);
+      setLoadError(true);
       setTrips([]);
     } finally {
       setLoading(false);
@@ -71,6 +76,7 @@ export default function SearchScreen() {
   const runSearch = async (dep: string, arr: string, month: MonthOption | null) => {
     try {
       setLoading(true);
+      setLoadError(false);
       const params = new URLSearchParams();
       params.append('departureCity', dep.trim());
       params.append('arrivalCity', arr.trim());
@@ -83,6 +89,7 @@ export default function SearchScreen() {
       setTrips(Array.isArray(response.data) ? response.data : []);
     } catch (err) {
       console.error(err);
+      setLoadError(true);
       setTrips([]);
     } finally {
       setLoading(false);
@@ -133,9 +140,12 @@ export default function SearchScreen() {
           <RouteArc w={392} h={200} d="M56 150 Q 196 44 336 96" />
           <View style={styles.heroTop}>
             <Text style={styles.brand}>Sendlo</Text>
-            <Pressable style={styles.avatarBtn} onPress={() => router.push('/(sender)/profile' as any)}>
-              <Feather name="user" size={17} color="#fff" />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <NotificationBell />
+              <Pressable style={styles.avatarBtn} onPress={() => router.push('/(sender)/profile' as any)}>
+                <Feather name="user" size={17} color="#fff" />
+              </Pressable>
+            </View>
           </View>
           <Text style={styles.heroTitle}>Envoyez à{'\n'}travers la mer.</Text>
         </View>
@@ -218,7 +228,23 @@ export default function SearchScreen() {
           </Text>
 
           {loading ? <Text style={styles.stateText}>Chargement…</Text> : null}
-          {!loading && trips.length === 0 ? <Text style={styles.stateText}>Aucun trajet trouvé</Text> : null}
+
+          {!loading && loadError ? (
+            <View style={styles.errorBanner}>
+              <Feather name="wifi-off" size={18} color={M.warm1} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.errorTitle}>Impossible de charger les trajets</Text>
+                <Text style={styles.errorSub}>Vérifiez votre connexion.</Text>
+              </View>
+              <Pressable style={styles.retryBtn} onPress={loadAvailableTrips}>
+                <Text style={styles.retryTxt}>Réessayer</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {!loading && !loadError && trips.length === 0 ? (
+            <Text style={styles.stateText}>Aucun trajet trouvé</Text>
+          ) : null}
 
           {!loading &&
             trips.map((trip) => {
@@ -267,7 +293,7 @@ export default function SearchScreen() {
         </View>
       </ScrollView>
 
-      <Toast />
+      {/* Single <Toast /> lives in app/_layout.tsx — see note in add-trip.tsx */}
     </View>
   );
 }
@@ -306,6 +332,14 @@ const styles = StyleSheet.create({
   results: { paddingHorizontal: 18, paddingTop: 22 },
   resultsTitle: { fontSize: 16, fontWeight: '700', color: M.text, marginBottom: 12, fontFamily: fonts.display },
   stateText: { textAlign: 'center', marginTop: 20, color: M.textMut, fontFamily: fonts.body },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FEF0EC', borderWidth: 1, borderColor: '#F6D9CE', borderRadius: 16, padding: 14,
+  },
+  errorTitle: { fontSize: 14, fontWeight: '600', color: '#B33F2A', fontFamily: fonts.body },
+  errorSub: { fontSize: 12, color: '#A8705B', marginTop: 2, fontFamily: fonts.body },
+  retryBtn: { backgroundColor: M.warm1, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  retryTxt: { color: '#fff', fontSize: 12, fontWeight: '600', fontFamily: fonts.body },
 
   tripCard: { padding: 18, marginBottom: 14 },
   cityRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 },

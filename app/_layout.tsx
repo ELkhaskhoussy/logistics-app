@@ -23,6 +23,7 @@ export default function RootLayout() {
         <Stack.Screen name="(sender)" />
         <Stack.Screen name="(transporter)" />
         <Stack.Screen name="shipment/[id]" />
+        <Stack.Screen name="notifications" />
       </Stack>
     </View>
   </AuthProvider>

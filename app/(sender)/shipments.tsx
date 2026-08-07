@@ -30,6 +30,7 @@ export default function ShipmentsScreen() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('ALL');
 
   const load = useCallback(async () => {
@@ -39,9 +40,11 @@ export default function ShipmentsScreen() {
     }
     try {
       setLoading(true);
+      setLoadError(false);
       setBookings(await getMyBookings(userId));
     } catch (e) {
       console.warn('Failed to load shipments', e);
+      setLoadError(true);
       setBookings([]);
     } finally {
       setLoading(false);
@@ -94,6 +97,17 @@ export default function ShipmentsScreen() {
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator size="large" color={M.warm1} />
+          </View>
+        ) : loadError ? (
+          <View style={styles.errorBanner}>
+            <Feather name="wifi-off" size={18} color={M.warm1} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.errorTitle}>Impossible de charger vos envois</Text>
+              <Text style={styles.errorSub}>Vérifiez votre connexion.</Text>
+            </View>
+            <Pressable style={styles.retryBtn} onPress={load}>
+              <Text style={styles.retryTxt}>Réessayer</Text>
+            </Pressable>
           </View>
         ) : shown.length === 0 ? (
           <EmptyState onSearch={() => router.push('/(sender)/search' as any)} filtered={filter !== 'ALL'} />
@@ -198,6 +212,14 @@ const styles = StyleSheet.create({
   pillTxtActive: { color: M.ink },
 
   center: { paddingTop: 60, alignItems: 'center' },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, margin: 20,
+    backgroundColor: '#FEF0EC', borderWidth: 1, borderColor: '#F6D9CE', borderRadius: 16, padding: 14,
+  },
+  errorTitle: { fontSize: 14, fontWeight: '600', color: '#B33F2A', fontFamily: fonts.body },
+  errorSub: { fontSize: 12, color: '#A8705B', marginTop: 2, fontFamily: fonts.body },
+  retryBtn: { backgroundColor: M.warm1, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  retryTxt: { color: '#fff', fontSize: 12, fontWeight: '600', fontFamily: fonts.body },
   list: { paddingHorizontal: 20, paddingTop: 20, gap: 14 },
 
   card: { padding: 18 },

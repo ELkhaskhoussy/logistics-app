@@ -10,6 +10,7 @@ import GradientButton from '../../components/meridian/GradientButton';
 import { fonts, M } from '../../constants/meridian';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { getUserById, updateUserPhone } from '../services/user';
+import { getApiBaseUrl } from '../networking/config';
 import { isValidPhone, onlyPhone } from '../utils/inputFilters';
 
 export default function SenderProfileScreen() {
@@ -68,7 +69,7 @@ export default function SenderProfileScreen() {
       const response = await fetch(uri);
       const blob = await response.blob();
       formData.append('file', blob, 'profile.jpg');
-      const uploadResponse = await fetch(`http://localhost:8080/users/${userId}/upload-profile-photo`, { method: 'POST', body: formData });
+      const uploadResponse = await fetch(`${getApiBaseUrl()}/users/${userId}/upload-profile-photo`, { method: 'POST', body: formData });
       const photoUrl = await uploadResponse.text();
       setImage(photoUrl);
       Alert.alert('Success', 'Profile photo updated');

@@ -11,6 +11,7 @@ import { fonts, M } from '../../../constants/meridian';
 import { useAuth } from '../../../scripts/context/AuthContext';
 import { getUserById, updateUserPhone } from '../../services/user';
 import { createTransporterProfile, fetchTransporterProfile, updateTransporterProfile } from '../../services/trip';
+import { getApiBaseUrl } from '../../networking/config';
 import { cappedText, isValidPhone, onlyName, onlyPhone, onlyPlate } from '../../utils/inputFilters';
 
 export default function TransporterProfileScreen() {
@@ -76,7 +77,7 @@ export default function TransporterProfileScreen() {
       setIsUploading(true);
       const formData = new FormData();
       formData.append('file', { uri, name: 'profile.jpg', type: 'image/jpeg' } as any);
-      const response = await fetch(`http://localhost:8080/users/${userId}/upload-profile-photo`, {
+      const response = await fetch(`${getApiBaseUrl()}/users/${userId}/upload-profile-photo`, {
         method: 'POST', body: formData, headers: { 'Content-Type': 'multipart/form-data' },
       });
       const photoUrl = await response.text();
