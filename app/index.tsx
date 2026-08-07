@@ -106,6 +106,17 @@ export default function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Inside the OAuth popup: never render the app. maybeCompleteAuthSession()
+  // (root layout) hands the token to the opener and closes this window — showing
+  // the landing page here is what made the popup look stuck on the home page.
+  if (isOAuthPopup()) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0A1626" }}>
+        <ActivityIndicator size="large" color="#F5A623" />
+      </View>
+    );
+  }
+
   if (processing || loading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#0A1626" }}>
