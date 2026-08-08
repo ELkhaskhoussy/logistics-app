@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { useAuth } from "../scripts/context/AuthContext";
 import LandingScreen from "../components/LandingScreen";
+import { GOOGLE_NONCE_KEY, GOOGLE_STATE_KEY } from "../hooks/useGoogleAuth";
 import { authenticateWithGoogle, registerWithGoogle } from "./services/auth";
 import { saveGoogleUser } from "./utils/tokenStorage";
 
@@ -41,7 +42,27 @@ function isOAuthPopup(): boolean {
 
 function getReturnedIdToken(): string | null {
   if (isOAuthPopup()) return null; // let the popup path complete normally
-  return getHashParams()?.get("id_token") ?? null;
+
+  const params = getHashParams();
+  const idToken = params?.get("id_token") ?? null;
+  if (!idToken) return null;
+
+  // The mobile redirect flow (hooks/useGoogleAuth) stores a random state before
+  // sending the tab to Google. If one is stored it must match, otherwise this
+  // token did not come from a sign-in we started. When nothing is stored we
+  // accept the token, so the desktop popup flow keeps working unchanged.
+  try {
+    const expected = sessionStorage.getItem(GOOGLE_STATE_KEY);
+    if (expected) {
+      sessionStorage.removeItem(GOOGLE_STATE_KEY);
+      sessionStorage.removeItem(GOOGLE_NONCE_KEY);
+      if (params?.get("state") !== expected) return null;
+    }
+  } catch {
+    // sessionStorage unavailable (private mode) — fall through and accept.
+  }
+
+  return idToken;
 }
 
 export default function Index() {
