@@ -32,6 +32,8 @@ export default function RootLayout() {
         <Stack.Screen name="(transporter)" />
         <Stack.Screen name="shipment/[id]" />
         <Stack.Screen name="notifications" />
+        {/* Public — the landing target for trip-alert emails and shared links. */}
+        <Stack.Screen name="trip/[id]" />
       </Stack>
     </View>
   </AuthProvider>
@@ -41,4 +43,4 @@ export default function RootLayout() {
 </>
 
   );
-}
+}
