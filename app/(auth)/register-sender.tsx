@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import GradientButton from '../../components/meridian/GradientButton';
 import InkField from '../../components/meridian/InkField';
+import PhoneField from '../../components/meridian/PhoneField';
 import { fonts, M } from '../../constants/meridian';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { registerUser } from '../services/auth';
-import { cleanEmail, isValidEmail, isValidPhone, onlyName, onlyPhone } from '../utils/inputFilters';
+import { countryByCode, isValidNational, toE164 } from '../utils/phone';
+import { cleanEmail, isValidEmail, onlyName } from '../utils/inputFilters';
 
 export default function RegisterSenderScreen() {
   const router = useRouter();
@@ -15,6 +17,8 @@ export default function RegisterSenderScreen() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  // Country is explicit so the stored number is unambiguous (see utils/phone).
+  const [country, setCountry] = useState(countryByCode('FR'));
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -31,8 +35,8 @@ export default function RegisterSenderScreen() {
       setError('Adresse e-mail invalide.');
       return;
     }
-    if (!isValidPhone(phone)) {
-      setError('Numéro de téléphone invalide (au moins 8 chiffres).');
+    if (!isValidNational(country, phone)) {
+      setError(`Numéro invalide pour ${country.label}. Exemple : ${country.example}`);
       return;
     }
     if (password !== confirm) {
@@ -48,7 +52,7 @@ export default function RegisterSenderScreen() {
       const parts = name.trim().split(' ').filter(Boolean);
       const firstName = parts[0] || 'User';
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : firstName;
-      const response = await registerUser({ firstName, lastName, email, password, role: 'SENDER', phone });
+      const response = await registerUser({ firstName, lastName, email, password, role: 'SENDER', phone: toE164(country, phone) });
       await login(response);
       // Account created but not yet verified — confirm the email address next.
       router.replace({ pathname: '/(auth)/verify-email', params: { email } } as any);
@@ -72,11 +76,11 @@ export default function RegisterSenderScreen() {
         <Text style={styles.title}>Create your{'\n'}account</Text>
 
         <View style={styles.form}>
-          <InkField icon="user" label="FULL NAME" value={name} onChangeText={(t) => setName(onlyName(t))} placeholder="Sami Aouni" autoCapitalize="words" />
-          <InkField icon="mail" label="EMAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
-          <InkField icon="phone" label="PHONE" value={phone} onChangeText={(t) => setPhone(onlyPhone(t))} placeholder="+216 55 123 456" keyboardType="phone-pad" />
-          <InkField icon="lock" label="PASSWORD" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
-          <InkField icon="lock" label="CONFIRM PASSWORD" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
+          <InkField icon="user" label="NOM COMPLET" value={name} onChangeText={(t) => setName(onlyName(t))} placeholder="Sami Aouni" autoCapitalize="words" />
+          <InkField icon="mail" label="E-MAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
+          <PhoneField label="TÉLÉPHONE" country={country} onCountryChange={setCountry} national={phone} onNationalChange={setPhone} />
+          <InkField icon="lock" label="MOT DE PASSE" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
+          <InkField icon="lock" label="CONFIRMER LE MOT DE PASSE" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
 
           {error ? (
             <View style={styles.errorBox}>
@@ -92,7 +96,7 @@ export default function RegisterSenderScreen() {
           <Text style={styles.signinTxt}>Already registered? </Text>
           <Link href="/login" asChild>
             <Pressable hitSlop={6}>
-              <Text style={styles.signinLink}>Sign in</Text>
+              <Text style={styles.signinLink}>Se connecter</Text>
             </Pressable>
           </Link>
         </View>

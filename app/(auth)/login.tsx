@@ -135,8 +135,8 @@ export default function LoginScreen() {
             >
               <Feather name="package" size={26} color="#fff" />
             </LinearGradient>
-            <Text style={styles.h1}>Welcome back</Text>
-            <Text style={styles.h2}>Sign in to Sendlo</Text>
+            <Text style={styles.h1}>Bon retour</Text>
+            <Text style={styles.h2}>Connectez-vous à Sendlo</Text>
           </View>
         </View>
 
@@ -144,7 +144,7 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <InkField
             icon="mail"
-            label="EMAIL"
+            label="E-MAIL"
             value={email}
             onChangeText={(t) => setEmail(cleanEmail(t))}
             placeholder="you@example.com"
@@ -152,7 +152,7 @@ export default function LoginScreen() {
           />
           <InkField
             icon="lock"
-            label="PASSWORD"
+            label="MOT DE PASSE"
             value={password}
             onChangeText={setPassword}
             placeholder="••••••••"
@@ -167,10 +167,10 @@ export default function LoginScreen() {
           ) : null}
 
           <Pressable onPress={() => router.push('/forgot-password')} hitSlop={6}>
-            <Text style={styles.forgot}>Forgot password?</Text>
+            <Text style={styles.forgot}>Mot de passe oublié ?</Text>
           </Pressable>
 
-          <GradientButton label="Sign in" icon="arrow-right" onPress={handleLogin} loading={loading} />
+          <GradientButton label="Se connecter" icon="arrow-right" onPress={handleLogin} loading={loading} />
         </View>
 
         {/* FOOTER */}
@@ -182,13 +182,13 @@ export default function LoginScreen() {
           </View>
           <Pressable style={styles.google} onPress={handleGoogleLogin}>
             <Feather name="chrome" size={16} color="#fff" />
-            <Text style={styles.googleTxt}>Continue with Google</Text>
+            <Text style={styles.googleTxt}>Continuer avec Google</Text>
           </Pressable>
           <View style={styles.signup}>
-            <Text style={styles.signupTxt}>New here? </Text>
+            <Text style={styles.signupTxt}>Nouveau ici ? </Text>
             <Link href="/(auth)/register-sender" asChild>
               <Pressable hitSlop={6}>
-                <Text style={styles.signupLink}>Create account</Text>
+                <Text style={styles.signupLink}>Créer un compte</Text>
               </Pressable>
             </Link>
           </View>

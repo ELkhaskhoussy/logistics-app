@@ -9,6 +9,7 @@ import { fonts, M } from '../../constants/meridian';
 import { getApiBaseUrl } from '../networking/config';
 import type { Booking } from '../networking/types';
 import { getMyBookings } from '../services/booking';
+import { toWhatsAppDigits } from '../utils/phone';
 import { useAuth } from '../../scripts/context/AuthContext';
 import { apiClient } from '../services/backService';
 
@@ -92,8 +93,11 @@ export default function ShipmentDetailScreen() {
     }));
   }, [trip]);
 
+  // See utils/phone: null means the number cannot form a valid wa.me link.
+  const waDigits = toWhatsAppDigits(transporterPhone);
+
   const openWhatsApp = () => {
-    const digits = (transporterPhone || '').replace(/[^0-9]/g, '');
+    const digits = waDigits;
     if (!digits) return;
     const text = encodeURIComponent(`Bonjour, je vous contacte via Sendlo au sujet de mon colis.`);
     Linking.openURL(`https://wa.me/${digits}?text=${text}`);
@@ -282,7 +286,7 @@ export default function ShipmentDetailScreen() {
             <Text style={styles.totalValue}>{price !== null ? `€${price.toFixed(2)}` : '—'}</Text>
           </View>
 
-          {transporterPhone ? (
+          {waDigits ? (
             <Pressable style={styles.whatsapp} onPress={openWhatsApp}>
               <Feather name="message-circle" size={17} color="#fff" />
               <Text style={styles.whatsappTxt}>Contacter {transporterName.split(' ')[0]} sur WhatsApp</Text>

@@ -68,8 +68,8 @@ export default function ResetPasswordScreen() {
         </View>
 
         <View style={styles.form}>
-          <InkField icon="lock" label="NEW PASSWORD" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
-          <InkField icon="check" label="CONFIRM PASSWORD" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
+          <InkField icon="lock" label="NOUVEAU MOT DE PASSE" value={password} onChangeText={setPassword} placeholder="••••••••" secure />
+          <InkField icon="check" label="CONFIRMER LE MOT DE PASSE" value={confirm} onChangeText={setConfirm} placeholder="••••••••" secure />
 
           <View style={styles.strength}>
             {[0, 1, 2, 3].map((i) => (

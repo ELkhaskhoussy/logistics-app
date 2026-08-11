@@ -1,0 +1,73 @@
+name: Verify (branches + PRs)
+
+# Typecheck, lint and produce a real web bundle — without deploying.
+#
+# tsc catches type errors but not bundling errors; a missing import or a module
+# that resolves in TypeScript but not in Metro only shows up at export time.
+# Running the export here means a branch is known to build before it is merged.
+
+on:
+  push:
+    branches-ignore:
+      - develop   # covered by the deploying pipeline in CI.yml
+      - prod
+  pull_request:
+    branches:
+      - develop
+      - prod
+  workflow_dispatch:
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint, bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      # Not gating yet: the project carries pre-existing type errors. Failing
+      # here would block every branch on debt that predates the change. Flip
+      # continue-on-error to false once the baseline is clean.
+      - name: Typecheck
+        continue-on-error: true
+        run: npx tsc --noEmit
+
+      - name: Lint
+        continue-on-error: true
+        run: npm run lint
+
+      # This one DOES gate: if the bundle cannot be produced, the deploy would
+      # ship a broken site.
+      - name: Build web bundle
+        run: npx expo export --platform web --output-dir dist
+
+      - name: Check the bundle actually exists
+        run: |
+          test -f dist/index.html || { echo "::error::dist/index.html missing"; exit 1; }
+          BUNDLE=$(find dist -name 'entry-*.js' | head -1)
+          test -n "$BUNDLE" || { echo "::error::no JS bundle produced"; exit 1; }
+          SIZE=$(stat -c%s "$BUNDLE")
+          echo "Bundle: $BUNDLE ($SIZE bytes)"
+          {
+            echo "### Frontend verification"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Bundle | \`$(basename "$BUNDLE")\` |"
+            echo "| Raw size | $((SIZE / 1024)) KB |"
+            echo "| Branch | \`${{ github.ref_name }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

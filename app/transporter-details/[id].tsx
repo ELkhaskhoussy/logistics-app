@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { toWhatsAppDigits } from '../utils/phone';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
@@ -194,8 +195,13 @@ export default function TransporterProfileScreen() {
   const initials = displayName.split(' ').map((w: string) => w.charAt(0)).join('').slice(0, 2).toUpperCase();
   const phone = userInfo?.phone || '';
 
+  // null when the stored number cannot produce a working wa.me link (national
+  // format, missing country code). The button is hidden in that case rather
+  // than rendered as a no-op — that was the production bug.
+  const waDigits = toWhatsAppDigits(phone);
+
   const openWhatsApp = () => {
-    const digits = phone.replace(/[^0-9]/g, '');
+    const digits = waDigits;
     if (!digits) {
       setMessage('Numéro du transporteur indisponible');
       return;
@@ -332,10 +338,12 @@ export default function TransporterProfileScreen() {
 
       {/* BOTTOM BAR */}
       <View style={styles.bottomBar}>
-        <Pressable style={styles.whatsappButton} onPress={openWhatsApp}>
-          <Feather name="message-circle" size={18} color="#fff" />
-          <Text style={styles.whatsappText}>WhatsApp</Text>
-        </Pressable>
+        {waDigits ? (
+          <Pressable style={styles.whatsappButton} onPress={openWhatsApp}>
+            <Feather name="message-circle" size={18} color="#fff" />
+            <Text style={styles.whatsappText}>WhatsApp</Text>
+          </Pressable>
+        ) : null}
         <View style={{ flex: 1 }}>
           <GradientButton label="Réserver" icon="send" onPress={() => { setStep(1); setIsBookingOpen(true); }} />
         </View>

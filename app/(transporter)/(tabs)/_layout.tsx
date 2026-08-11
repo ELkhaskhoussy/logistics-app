@@ -21,15 +21,15 @@ export default function TransporterTabsLayout() {
     >
       <Tabs.Screen
         name="dashboard"
-        options={{ title: 'Trips', tabBarIcon: ({ color, size }) => <Feather name="truck" size={size} color={color} /> }}
+        options={{ title: 'Trajets', tabBarIcon: ({ color, size }) => <Feather name="truck" size={size} color={color} /> }}
       />
       <Tabs.Screen
         name="add-trip"
-        options={{ title: 'Add Trip', tabBarIcon: ({ color, size }) => <Feather name="plus-circle" size={size} color={color} /> }}
+        options={{ title: 'Ajouter', tabBarIcon: ({ color, size }) => <Feather name="plus-circle" size={size} color={color} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} /> }}
+        options={{ title: 'Profil', tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} /> }}
       />
     </Tabs>
   );

@@ -22,7 +22,7 @@ export default function SenderLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Search',
+          title: 'Rechercher',
           tabBarIcon: ({ color, size }) => <Feather name="search" size={size} color={color} />,
         }}
       />
@@ -36,7 +36,7 @@ export default function SenderLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Profil',
           tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
         }}
       />

@@ -57,7 +57,7 @@ export default function ForgotPasswordScreen() {
         </View>
 
         <View style={styles.form}>
-          <InkField icon="mail" label="EMAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
+          <InkField icon="mail" label="E-MAIL" value={email} onChangeText={(t) => setEmail(cleanEmail(t))} placeholder="you@example.com" keyboardType="email-address" />
           {error ? (
             <View style={styles.errorBox}>
               <Feather name="alert-circle" size={14} color="#fff" />
